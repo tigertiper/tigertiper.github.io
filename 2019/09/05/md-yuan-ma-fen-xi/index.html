@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+
+
+
+
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 3.9.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.4.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.4.0">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.4.0">
+  <link rel="mask-icon" href="/images/logo.svg?v=7.4.0" color="#222">
+  <meta name="yandex-verification" content="3ac9ae36ddebb425">
+
+<link rel="stylesheet" href="/css/main.css?v=7.4.0">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css?v=4.7.0">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '7.4.0',
+    exturl: true,
+    sidebar: {"onmobile":true,"display":"post"},
+    copycode: {"enable":true},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":true,"trigger":"auto","top_n_per_article":1,"preload":true},
+    path: 'search.xml',
+    motion: {"enable":false},
+    translation: {
+      copy_button: '复制',
+      copy_success: '复制成功',
+      copy_failure: '复制失败'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="简介RAID是IO路径中的关键模块，甚至在整个存储系统中，RAID是最为核心和复杂的模块。在Linux操作系统中，提供了一个开源的RAID，那就是MD RAID。该RAID可以实现RAID0、RAID1、RAID5和RAID6的功能，在产业界得到了广泛的应用。MD RAID对外采用块设备的形式导出，因此，通过块设备层的调度，BIO请求会被发送到RAID模块进行进一步的IO处理。在MD RAID一层">
+<meta name="keywords" content="linux,mdadm,kernel">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MD源码分析">
+<meta property="og:url" content="https://tigertiper.github.io/2019/09/05/md-yuan-ma-fen-xi/index.html">
+<meta property="og:site_name" content="云天">
+<meta property="og:description" content="简介RAID是IO路径中的关键模块，甚至在整个存储系统中，RAID是最为核心和复杂的模块。在Linux操作系统中，提供了一个开源的RAID，那就是MD RAID。该RAID可以实现RAID0、RAID1、RAID5和RAID6的功能，在产业界得到了广泛的应用。MD RAID对外采用块设备的形式导出，因此，通过块设备层的调度，BIO请求会被发送到RAID模块进行进一步的IO处理。在MD RAID一层">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="https://tigertiper.github.io/2019/09/05/md-yuan-ma-fen-xi/raid5架构.png">
+<meta property="og:image" content="https://tigertiper.github.io/2019/09/05/md-yuan-ma-fen-xi/stripe_head.png">
+<meta property="og:image" content="https://tigertiper.github.io/2019/09/05/md-yuan-ma-fen-xi/bio_dev_disk_page.png">
+<meta property="og:updated_time" content="2019-09-13T14:41:32.700Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MD源码分析">
+<meta name="twitter:description" content="简介RAID是IO路径中的关键模块，甚至在整个存储系统中，RAID是最为核心和复杂的模块。在Linux操作系统中，提供了一个开源的RAID，那就是MD RAID。该RAID可以实现RAID0、RAID1、RAID5和RAID6的功能，在产业界得到了广泛的应用。MD RAID对外采用块设备的形式导出，因此，通过块设备层的调度，BIO请求会被发送到RAID模块进行进一步的IO处理。在MD RAID一层">
+<meta name="twitter:image" content="https://tigertiper.github.io/2019/09/05/md-yuan-ma-fen-xi/raid5架构.png">
+  <link rel="canonical" href="https://tigertiper.github.io/2019/09/05/md-yuan-ma-fen-xi/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>MD源码分析 | 云天</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?fd574cb48e199b8e88b0f9f8a18322e2";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">云天</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+      
+      
+      
+        
+        <li class="menu-item menu-item-home">
+      
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+      
+      
+      
+        
+        <li class="menu-item menu-item-about">
+      
+    
+      
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+      
+      
+      
+        
+        <li class="menu-item menu-item-archives">
+      
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">5</span></a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger">
+        
+          <i class="menu-item-icon fa fa-search fa-fw"></i> <br>搜索</a>
+      </li>
+    
+  </ul>
+
+    
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="text" id="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result"></div>
+
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+      <article itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block post">
+    <link itemprop="mainEntityOfPage" href="https://tigertiper.github.io/2019/09/05/md-yuan-ma-fen-xi/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="云天">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/favicon.png">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="云天">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">MD源码分析<span class="exturl post-edit-link" data-url="aHR0cHM6Ly9naXRodWIuY29tL3RpZ2VydGlwZXIvbXlibG9nL2VkaXQvbWFzdGVyL3NvdXJjZS9fcG9zdHMvTUTmupDnoIHliIbmnpAubWQ=" title="编辑"><i class="fa fa-pencil"></i></span>
+
+          
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              
+                
+              
+
+              <time title="创建时间：2019-09-05 17:27:27" itemprop="dateCreated datePublished" datetime="2019-09-05T17:27:27+08:00">2019-09-05</time>
+            </span>
+          
+            
+
+            
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2019-09-13 22:41:32" itemprop="dateModified" datetime="2019-09-13T22:41:32+08:00">2019-09-13</time>
+              </span>
+            
+          
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/存储技术/" itemprop="url" rel="index"><span itemprop="name">存储技术</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">本文字数：</span>
+              
+              <span>12k</span>
+            </span>
+          
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              
+              <span>11 分钟</span>
+            </span>
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>RAID是IO路径中的关键模块，甚至在整个存储系统中，RAID是最为核心和复杂的模块。在Linux操作系统中，提供了一个开源的RAID，那就是MD RAID。该RAID可以实现RAID0、RAID1、RAID5和RAID6的功能，在产业界得到了广泛的应用。MD RAID对外采用块设备的形式导出，因此，通过块设备层的调度，BIO请求会被发送到RAID模块进行进一步的IO处理。在MD RAID一层，请求会被按照条带的方式进行切分，然后再按照RAID中磁盘的个数进行磁盘请求的映射。在请求的处理过程中，会存在条带小写问题，因此会引入“读-修改-写”的过程。在一个写请求发送往多个磁盘之前，校验信息（Parity）需要被计算处理，并且按照left-asymmetric或者right-asymmetric的数据布局方式将校验信息放置到多个磁盘中。</p><a id="more"></a>
+<h1 id="RAID5的基本架构与数据结构解析"><a href="#RAID5的基本架构与数据结构解析" class="headerlink" title="RAID5的基本架构与数据结构解析"></a>RAID5的基本架构与数据结构解析</h1><h2 id="RAID5的基本架构"><a href="#RAID5的基本架构" class="headerlink" title="RAID5的基本架构"></a>RAID5的基本架构</h2><p>RAID5的读写操作采用的是stripe的基本结构，即以stripe为读写的基本单位，假设一个3+1的RAID5，即3个数据盘+1个校验盘，那么一个stripe就包含3个数据块和一个校验块。我们结合图示来仔细看下RAID5的架构。</p>
+<p><img src="/2019/09/05/md-yuan-ma-fen-xi/raid5架构.png" alt="raid5架构"></p>
+<p>如图所示，这是一个3+1的RAID5，图中的每一个方块表示一个stripe的一个基本单元，又称为chunk；相同颜色的方块组成一个stripe，即每个stripe由3个数据chunk(A,B,C)+1个校验chunk(P)组成。关于校验块的生成方法以及数据恢复原理如下：</p>
+<ul>
+<li>校验块P的生成方法为P=A⊕B⊕C 。(⊕表示异或运算)</li>
+<li>假如1号盘坏了，此时有读请求读B0块的数据，那么可以通过B0=A0⊕C0⊕P0 的方法 来进行恢复。</li>
+</ul>
+<p>可以观察到上图中的校验块不是单独的全部存在一个盘上，这是为了实现RAID中磁盘的磨损平衡，防止某个盘寿命太短而先损坏。内核中有很多这种平衡校验块的算法，上图中用到的是<strong>ALGORITHM_LEFT_SYMMETRIC</strong>。</p>
+<h2 id="内核中默认的stripe大小"><a href="#内核中默认的stripe大小" class="headerlink" title="内核中默认的stripe大小"></a>内核中默认的stripe大小</h2><p>基本上所有的OS都认可的page大小是4KB，由于内核中是按sector为基本大小单位，1 sector = 512B，所以有如下公式：</p>
+<ul>
+<li>1 page = 8<em>sector = 4KB</em></li>
+<li>1 chunk = 128<em>page = 512KB</em></li>
+<li>1 stripe = 4<em>chunk = 2048KB</em></li>
+<li>1 stripe的data size =3*chunk =1536KB</li>
+</ul>
+<h2 id="RAID5的数据结构"><a href="#RAID5的数据结构" class="headerlink" title="RAID5的数据结构"></a>RAID5的数据结构</h2><h3 id="stripe-head"><a href="#stripe-head" class="headerlink" title="stripe_head"></a>stripe_head</h3><p>虽然说直观上看RAID5的基本处理单元是stripe，但是一个chunk的大小是512KB，这与OS一次处理的page大小相差太多，所以为了处理的一致性，内核将一个chunk分成128个page，由一个stripe的每个chunk出一个对应的page组成内核中的RAID5处理的基本单元：stripe_head。stripe_head的定义在raid5.h中。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">stripe_head</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">hlist_node</span>   <span class="title">hash</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    <span class="title">lru</span>;</span>          <span class="comment">/* inactive_list or handle_list */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">llist_node</span>   <span class="title">release_list</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">r5conf</span>       *<span class="title">raid_conf</span>;</span><span class="comment">//raid5的全局配置信息</span></span><br><span class="line">    <span class="keyword">short</span>           generation; <span class="comment">/* increments with every</span></span><br><span class="line"><span class="comment">                         * reshape */</span></span><br><span class="line">    <span class="keyword">sector_t</span>        sector;     <span class="comment">/* sector of this row */</span></span><br><span class="line">    <span class="keyword">short</span>           pd_idx;     <span class="comment">/* parity disk index */</span></span><br><span class="line">    <span class="keyword">short</span>           qd_idx;     <span class="comment">/* 'Q' disk index for raid6 */</span></span><br><span class="line">    <span class="keyword">short</span>           ddf_layout;<span class="comment">/* use DDF ordering to calculate Q */</span></span><br><span class="line">    <span class="keyword">short</span>           hash_lock_index;</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>       state;      <span class="comment">/* state flags */</span></span><br><span class="line">    <span class="keyword">atomic_t</span>        count;        <span class="comment">/* nr of active thread/requests */</span></span><br><span class="line">    <span class="keyword">int</span>         bm_seq; <span class="comment">/* sequence number for bitmap flushes */</span></span><br><span class="line">    <span class="keyword">int</span>         disks;      <span class="comment">/* disks in stripe */</span></span><br><span class="line">    <span class="keyword">enum</span> check_states   check_state;</span><br><span class="line">    <span class="keyword">enum</span> reconstruct_states reconstruct_state;</span><br><span class="line">    <span class="keyword">spinlock_t</span>      stripe_lock;</span><br><span class="line">    <span class="keyword">int</span>         cpu;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">r5worker_group</span>   *<span class="title">group</span>;</span></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * struct stripe_operations</span></span><br><span class="line"><span class="comment">     * @target - STRIPE_OP_COMPUTE_BLK target</span></span><br><span class="line"><span class="comment">     * @target2 - 2nd compute target in the raid6 case</span></span><br><span class="line"><span class="comment">     * @zero_sum_result - P and Q verification flags</span></span><br><span class="line"><span class="comment">     * @request - async service request flags for raid_run_ops</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">stripe_operations</span> &#123;</span></span><br><span class="line">        <span class="keyword">int</span>              target, target2;</span><br><span class="line">        <span class="keyword">enum</span> sum_check_flags zero_sum_result;</span><br><span class="line">    &#125; ops;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">r5dev</span> &#123;</span></span><br><span class="line">        <span class="comment">/* rreq and rvec are used for the replacement device when</span></span><br><span class="line"><span class="comment">         * writing data to both devices.</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">bio</span>  <span class="title">req</span>, <span class="title">rreq</span>;</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">bio_vec</span>  <span class="title">vec</span>, <span class="title">rvec</span>;</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">page</span> *<span class="title">page</span>, *<span class="title">orig_page</span>;</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">bio</span>  *<span class="title">toread</span>, *<span class="title">read</span>, *<span class="title">towrite</span>, *<span class="title">written</span>;</span></span><br><span class="line">        <span class="keyword">sector_t</span>    sector;         <span class="comment">/* sector of this page */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">long</span>   flags;</span><br><span class="line">    &#125; dev[<span class="number">1</span>]; <span class="comment">/* allocated with extra space depending of RAID geometry */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>相应项的注释已经给出，我们用图来详细了解下stripe_head与stripe的区别。</p>
+<p><img src="/2019/09/05/md-yuan-ma-fen-xi/stripe_head.png" alt="stripe_head"></p>
+<p>这是第一幅图中的stripe 0 的细化，stripe 0 由A0、B0、C0和P0组成，这幅图中，将每个chunk细化，由于一个chunk的大小是128个page的大小，所以一个chunk中含有128个page，每个page的大小是4KB，所以在每一个chunk中具有相同偏移量的page组成一个stripe_head，即图中每个颜色相同的方块组成一个stripe_head。</p>
+<ul>
+<li>1 stripe_head = 4*page = 16KB</li>
+<li>1 stripe = 128 * stripe_head =2048KB</li>
+</ul>
+<p>所以说：我们经常说的RAID5的处理单元stripe，实际上是内核中的处理单元stripe_head的结合体，不要搞混淆了哦~</p>
+<p>另外还要再强调一点，每个请求bio都会有一个起始地址，这个地址对应的位置(根据上述的算法ALGORITHM_LEFT_SYMMETRIC来确定到哪块盘上，以及在这块盘上的偏移量)，一旦这个位置确定，它就会和在其他盘上具有相同偏移量的page构成一个stripe_head结构，这是确定了的，无法更改的！！！stripe_head中的sector域就是来记录这个偏移量的。</p>
+<p>值得注意的是stripe_head中的struct dev：就是对应的每个盘的缓冲区，为一个page的大小，里面包含了发往这个盘上的请求bio链表(toread表示需要处理的读请求，towrite表示需要处理的写请求，read表示已经处理完的读请求，written表示已经处理完的写请求)以及相应的缓冲区标志。</p>
+<h3 id="RAID5的全局配置信息r5conf"><a href="#RAID5的全局配置信息r5conf" class="headerlink" title="RAID5的全局配置信息r5conf"></a>RAID5的全局配置信息r5conf</h3><p>对每一个系统都需要维护个全局的信息来管理整个系统，RAID5也不例外，对整个RAID5的管理需要维护一个数据结构—<strong>r5conf</strong>。r5conf定义在raid5.h中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">r5conf</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">hlist_head</span>   *<span class="title">stripe_hashtbl</span>;</span></span><br><span class="line">    <span class="comment">/* only protect corresponding hash list and inactive_list */</span></span><br><span class="line">    <span class="keyword">spinlock_t</span>      hash_locks[NR_STRIPE_HASH_LOCKS];</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">mddev</span>        *<span class="title">mddev</span>;</span></span><br><span class="line">    <span class="keyword">int</span>         chunk_sectors;<span class="comment">/*一个chunk中sector的数目，    默认值为1024，即一个chunk的大小为512KB*/</span></span><br><span class="line">    <span class="keyword">int</span>         level, algorithm;<span class="comment">//raid5中level=5</span></span><br><span class="line">    <span class="keyword">int</span>         max_degraded;</span><br><span class="line">    <span class="keyword">int</span>         raid_disks;<span class="comment">//raid中磁盘的个数</span></span><br><span class="line">    <span class="keyword">int</span>         max_nr_stripes;<span class="comment">/*raid中允许的最大stripe_head的个数，默认为256，即最多允许256个stripe_head存在*/</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* reshape_progress is the leading edge of a 'reshape'</span></span><br><span class="line"><span class="comment">     * It has value MaxSector when no reshape is happening</span></span><br><span class="line"><span class="comment">     * If delta_disks &lt; 0, it is the last sector we started work on,</span></span><br><span class="line"><span class="comment">     * else is it the next sector to work on.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">sector_t</span>        reshape_progress;</span><br><span class="line">    <span class="comment">/* reshape_safe is the trailing edge of a reshape.  We know that</span></span><br><span class="line"><span class="comment">     * before (or after) this address, all reshape has completed.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">sector_t</span>        reshape_safe;</span><br><span class="line">    <span class="keyword">int</span>         previous_raid_disks;</span><br><span class="line">    <span class="keyword">int</span>         prev_chunk_sectors;</span><br><span class="line">    <span class="keyword">int</span>         prev_algo;</span><br><span class="line">    <span class="keyword">short</span>           generation; <span class="comment">/* increments with every reshape */</span></span><br><span class="line">    <span class="keyword">seqcount_t</span>      gen_lock;   <span class="comment">/* lock against generation changes */</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>       reshape_checkpoint; <span class="comment">/* Time we last updated</span></span><br><span class="line"><span class="comment">                             * metadata */</span></span><br><span class="line">    <span class="keyword">long</span> <span class="keyword">long</span>       min_offset_diff; <span class="comment">/* minimum difference between</span></span><br><span class="line"><span class="comment">                          * data_offset and</span></span><br><span class="line"><span class="comment">                          * new_data_offset across all</span></span><br><span class="line"><span class="comment">                          * devices.  May be negative,</span></span><br><span class="line"><span class="comment">                          * but is closest to zero.</span></span><br><span class="line"><span class="comment">                          */</span></span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    <span class="title">handle_list</span>;</span> <span class="comment">/* stripes needing handling */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    <span class="title">hold_list</span>;</span> <span class="comment">/* preread ready stripes */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    <span class="title">delayed_list</span>;</span> <span class="comment">/* stripes that have plugged requests */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    <span class="title">bitmap_list</span>;</span> <span class="comment">/* stripes delaying awaiting bitmap update */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bio</span>      *<span class="title">retry_read_aligned</span>;</span> <span class="comment">/* currently retrying aligned bios   */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">bio</span>      *<span class="title">retry_read_aligned_list</span>;</span> <span class="comment">/* aligned bios retry list  */</span></span><br><span class="line">    <span class="keyword">atomic_t</span>        preread_active_stripes; <span class="comment">/* stripes with scheduled io */</span></span><br><span class="line">    <span class="keyword">atomic_t</span>        active_aligned_reads;</span><br><span class="line">    <span class="keyword">atomic_t</span>        pending_full_writes; <span class="comment">/* full write backlog */</span></span><br><span class="line">    <span class="keyword">int</span>         bypass_count; <span class="comment">/* bypassed prereads */</span></span><br><span class="line">    <span class="keyword">int</span>         bypass_threshold; <span class="comment">/* preread nice */</span></span><br><span class="line">    <span class="keyword">int</span>         skip_copy; <span class="comment">/* Don't copy data from bio to stripe cache */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    *<span class="title">last_hold</span>;</span> <span class="comment">/* detect hold_list promotions */</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">atomic_t</span>        reshape_stripes; <span class="comment">/* stripes with pending writes for reshape */</span></span><br><span class="line">    <span class="comment">/* unfortunately we need two cache names as we temporarily have</span></span><br><span class="line"><span class="comment">     * two caches.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">int</span>         active_name;</span><br><span class="line">    <span class="keyword">char</span>            cache_name[<span class="number">2</span>][<span class="number">32</span>];</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">kmem_cache</span>       *<span class="title">slab_cache</span>;</span> <span class="comment">/* for allocating stripes */</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span>         seq_flush, seq_write;</span><br><span class="line">    <span class="keyword">int</span>         quiesce;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span>         fullsync;  <span class="comment">/* set to 1 if a full sync is needed,</span></span><br><span class="line"><span class="comment">                        * (fresh device added).</span></span><br><span class="line"><span class="comment">                        * Cleared when a sync completes.</span></span><br><span class="line"><span class="comment">                        */</span></span><br><span class="line">    <span class="keyword">int</span>         recovery_disabled;</span><br><span class="line">    <span class="comment">/* per cpu variables */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">raid5_percpu</span> &#123;</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">page</span> *<span class="title">spare_page</span>;</span> <span class="comment">/* Used when checking P/Q in raid6 */</span></span><br><span class="line">        <span class="keyword">void</span>        *scribble;   <span class="comment">/* space for constructing buffer</span></span><br><span class="line"><span class="comment">                          * lists and performing address</span></span><br><span class="line"><span class="comment">                          * conversions</span></span><br><span class="line"><span class="comment">                          */</span></span><br><span class="line">    &#125; __percpu *percpu;</span><br><span class="line">    <span class="keyword">size_t</span>          scribble_len; <span class="comment">/* size of scribble region must be</span></span><br><span class="line"><span class="comment">                           * associated with conf to handle</span></span><br><span class="line"><span class="comment">                           * cpu hotplug while reshaping</span></span><br><span class="line"><span class="comment">                           */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_HOTPLUG_CPU</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">notifier_block</span>   <span class="title">cpu_notify</span>;</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * Free stripes pool</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">atomic_t</span>        active_stripes;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    <span class="title">inactive_list</span>[<span class="title">NR_STRIPE_HASH_LOCKS</span>];</span></span><br><span class="line">    <span class="keyword">atomic_t</span>        empty_inactive_list_nr;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">llist_head</span>   <span class="title">released_stripes</span>;</span></span><br><span class="line">    <span class="keyword">wait_queue_head_t</span>   wait_for_stripe;</span><br><span class="line">    <span class="keyword">wait_queue_head_t</span>   wait_for_overlap;</span><br><span class="line">    <span class="keyword">int</span>         inactive_blocked;   <span class="comment">/* release of inactive stripes blocked,</span></span><br><span class="line"><span class="comment">                             * waiting for 25% to be free</span></span><br><span class="line"><span class="comment">                             */</span></span><br><span class="line">    <span class="keyword">int</span>         pool_size; <span class="comment">/* number of disks in stripeheads in pool */</span></span><br><span class="line">    <span class="keyword">spinlock_t</span>      device_lock;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">disk_info</span>    *<span class="title">disks</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* When taking over an array from a different personality, we store</span></span><br><span class="line"><span class="comment">     * the new thread here until we fully activate the array.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">md_thread</span>    *<span class="title">thread</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    <span class="title">temp_inactive_list</span>[<span class="title">NR_STRIPE_HASH_LOCKS</span>];</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">r5worker_group</span>   *<span class="title">worker_groups</span>;</span></span><br><span class="line">    <span class="keyword">int</span>         group_cnt;</span><br><span class="line">    <span class="keyword">int</span>         worker_cnt_per_group;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>这里我们需要关注的有如下几点：</p>
+<ul>
+<li>元数据，比如chunk_sectors、level、raid_disks、max_nr_stripes等,相应的注释已经写在上述代码片段中。</li>
+<li>handle_list、hold_list、delayed_list和bitmap_list，相应代表什么注释中写的很清楚了。由于stripe_head在处理时，会对应不同的状态，所以一个stripe_head在执行时会在上述几个链表中切换，弄清了这几个链表的切换条件和流程对理解raid5的运行原理有很大帮助！</li>
+<li>raid5的守护线程 struct md_thread *thread ,在raid5中守护线程为raid5d。</li>
+</ul>
+<h2 id="RAID5中数据结构的状态解析"><a href="#RAID5中数据结构的状态解析" class="headerlink" title="RAID5中数据结构的状态解析"></a>RAID5中数据结构的状态解析</h2><h3 id="stripe-head的状态标识"><a href="#stripe-head的状态标识" class="headerlink" title="stripe_head的状态标识"></a>stripe_head的状态标识</h3><p>在stripe_head的定义中有这样一个域 <code>unsinged long state</code> ,然后在raid5.h中会发现这样一个enum结构：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Stripe state</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">enum</span> &#123;</span><br><span class="line">    STRIPE_ACTIVE,<span class="comment">//正在处理</span></span><br><span class="line">    STRIPE_HANDLE,<span class="comment">//需要处理</span></span><br><span class="line">    STRIPE_SYNC_REQUESTED,<span class="comment">//同步请求</span></span><br><span class="line">    STRIPE_SYNCING,<span class="comment">//正在同步</span></span><br><span class="line">    STRIPE_INSYNC,<span class="comment">//已经同步</span></span><br><span class="line">    STRIPE_REPLACED,</span><br><span class="line">    STRIPE_PREREAD_ACTIVE,<span class="comment">//预读</span></span><br><span class="line">    STRIPE_DELAYED,<span class="comment">//延迟处理</span></span><br><span class="line">    STRIPE_DEGRADED,<span class="comment">//降级</span></span><br><span class="line">    STRIPE_BIT_DELAY,<span class="comment">//等待bitmap处理</span></span><br><span class="line">    STRIPE_EXPANDING,<span class="comment">//扩展</span></span><br><span class="line">    STRIPE_EXPAND_SOURCE,</span><br><span class="line">    STRIPE_EXPAND_READY,</span><br><span class="line">    STRIPE_IO_STARTED,  <span class="comment">//IO已经下发</span></span><br><span class="line">    STRIPE_FULL_WRITE,  <span class="comment">/* all blocks are set to be overwritten ,即满写*/</span></span><br><span class="line">    STRIPE_BIOFILL_RUN,<span class="comment">/*bio填充，就是讲page的内容copy到bio的page中*/</span></span><br><span class="line">    STRIPE_COMPUTE_RUN,<span class="comment">//正在计算</span></span><br><span class="line">    STRIPE_OPS_REQ_PENDING,<span class="comment">//handle_stripe 排队用</span></span><br><span class="line">    STRIPE_ON_UNPLUG_LIST,<span class="comment">/*批量处理release_list时标识是否加入unplug链表*/</span></span><br><span class="line">    STRIPE_ON_RELEASE_LIST,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>在实际操作中，通过set_bit(&amp;sh-&gt;state) 和 clear_bit(&amp;sh-&gt;state) 来进行置位和复位操作，上述相应注释已经给出。这些状态代表了此时stripe_head需要什么操作或者正在进行什么操作，根据这些状态决定下面如何操作stripe_head,所以这些状态很重要，一定要熟练掌握，这里只是简要介绍下，下篇博文会结合具体操作来分析stripe_head的变化情况。</p>
+<h3 id="dev的状态标识"><a href="#dev的状态标识" class="headerlink" title="dev的状态标识"></a>dev的状态标识</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* Flags for struct r5dev.flags */</span></span><br><span class="line"><span class="keyword">enum</span> r5dev_flags &#123;</span><br><span class="line">    R5_UPTODATE,    <span class="comment">/* page contains current data */</span></span><br><span class="line">    R5_LOCKED,  <span class="comment">/* IO has been submitted on "req" */</span></span><br><span class="line">    R5_DOUBLE_LOCKED,<span class="comment">/* Cannot clear R5_LOCKED until 2 writes complete */</span></span><br><span class="line">    R5_OVERWRITE,   <span class="comment">/* towrite covers whole page */</span></span><br><span class="line"><span class="comment">/* and some that are internal to handle_stripe */</span></span><br><span class="line">    R5_Insync,  <span class="comment">/* rdev &amp;&amp; rdev-&gt;in_sync at start */</span></span><br><span class="line">    R5_Wantread,    <span class="comment">/* want to schedule a read */</span></span><br><span class="line">    R5_Wantwrite,</span><br><span class="line">    R5_Overlap, <span class="comment">/* There is a pending overlapping request</span></span><br><span class="line"><span class="comment">             * on this block */</span></span><br><span class="line">    R5_ReadNoMerge, <span class="comment">/* prevent bio from merging in block-layer */</span></span><br><span class="line">    R5_ReadError,   <span class="comment">/* seen a read error here recently */</span></span><br><span class="line">    R5_ReWrite, <span class="comment">/* have tried to over-write the readerror */</span></span><br><span class="line"></span><br><span class="line">    R5_Expanded,    <span class="comment">/* This block now has post-expand data */</span></span><br><span class="line">    R5_Wantcompute, <span class="comment">/* compute_block in progress treat as</span></span><br><span class="line"><span class="comment">             * uptodate</span></span><br><span class="line"><span class="comment">             */</span></span><br><span class="line">    R5_Wantfill,    <span class="comment">/* dev-&gt;toread contains a bio that needs</span></span><br><span class="line"><span class="comment">             * filling</span></span><br><span class="line"><span class="comment">             */</span></span><br><span class="line">    R5_Wantdrain,   <span class="comment">/* dev-&gt;towrite needs to be drained */</span></span><br><span class="line">    R5_WantFUA, <span class="comment">/* Write should be FUA */</span></span><br><span class="line">    R5_SyncIO,  <span class="comment">/* The IO is sync */</span></span><br><span class="line">    R5_WriteError,  <span class="comment">/* got a write error - need to record it */</span></span><br><span class="line">    R5_MadeGood,    <span class="comment">/* A bad block has been fixed by writing to it */</span></span><br><span class="line">    R5_ReadRepl,    <span class="comment">/* Will/did read from replacement rather than orig */</span></span><br><span class="line">    R5_MadeGoodRepl,<span class="comment">/* A bad block on the replacement device has been</span></span><br><span class="line"><span class="comment">             * fixed by writing to it */</span></span><br><span class="line">    R5_NeedReplace, <span class="comment">/* This device has a replacement which is not</span></span><br><span class="line"><span class="comment">             * up-to-date at this stripe. */</span></span><br><span class="line">    R5_WantReplace, <span class="comment">/* We need to update the replacement, we have read</span></span><br><span class="line"><span class="comment">             * data in, and now is a good time to write it out.</span></span><br><span class="line"><span class="comment">             */</span></span><br><span class="line">    R5_Discard, <span class="comment">/* Discard the stripe */</span></span><br><span class="line">    R5_SkipCopy,    <span class="comment">/* Don't copy data from bio to stripe cache */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>相应的注释已经给出，有可能个刚刚看起来很吃力，其实这个很简单，就是单个单位之间的数据转换标志：<strong>bio中的page、dev中的page以及磁盘上的数据</strong>。</p>
+<p><img src="/2019/09/05/md-yuan-ma-fen-xi/bio_dev_disk_page.png" alt="bio_dev_disk_page"></p>
+<p>同时两个状态的结合也可以表示dev中数据的新旧：</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>dev flag</th>
+<th>uptodate</th>
+<th>locked</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>empty</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>want</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>dirty</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>clean</td>
+<td>1</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Note:一定要对RAID5中的各种状态熟练掌握，因为在代码中你会发现都是根据其状态作出相应的操作，所以了解了每一项代表的什么状态才能更清楚的掌握RAID5的运作原理。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ol>
+<li><span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2NoZW55b3V4dS9hcnRpY2xlL2RldGFpbHMvNDcwMDU5OTk=" title="https://blog.csdn.net/chenyouxu/article/details/47005999">https://blog.csdn.net/chenyouxu/article/details/47005999<i class="fa fa-external-link"></i></span></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+        
+      
+        <div id="reward-container">
+  <div>坚持原创技术分享，您的支持将鼓励我继续创作！</div>
+  <button id="reward-button" disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+        
+      
+      <div style="display: inline-block">
+        <img src="/images/wechat.png" alt="云天 微信支付">
+        <p>微信支付</p>
+      </div>
+        
+      
+      <div style="display: inline-block">
+        <img src="/images/alipay.jpg" alt="云天 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+      
+
+      <footer class="post-footer">
+          
+            
+          
+          <div class="post-tags">
+            
+              <a href="/tags/linux/" rel="tag"># linux</a>
+            
+              <a href="/tags/mdadm/" rel="tag"># mdadm</a>
+            
+              <a href="/tags/kernel/" rel="tag"># kernel</a>
+            
+          </div>
+        
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+              
+                <a href="/2019/09/04/bcache-jian-jie/" rel="next" title="Bcache使用">
+                  <i class="fa fa-chevron-left"></i> Bcache使用
+                </a>
+              
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+              
+                <a href="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/" rel="prev" title="存储阵列技术">
+                  存储阵列技术 <i class="fa fa-chevron-right"></i>
+                </a>
+              
+            </div>
+          </div>
+        
+      </footer>
+    
+  </div>
+  
+  
+  
+  </article>
+
+  </div>
+
+
+          </div>
+          
+
+        </div>
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+        
+        
+        
+        
+      
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#简介"><span class="nav-number">1.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#RAID5的基本架构与数据结构解析"><span class="nav-number">2.</span> <span class="nav-text">RAID5的基本架构与数据结构解析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#RAID5的基本架构"><span class="nav-number">2.1.</span> <span class="nav-text">RAID5的基本架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内核中默认的stripe大小"><span class="nav-number">2.2.</span> <span class="nav-text">内核中默认的stripe大小</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RAID5的数据结构"><span class="nav-number">2.3.</span> <span class="nav-text">RAID5的数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#stripe-head"><span class="nav-number">2.3.1.</span> <span class="nav-text">stripe_head</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RAID5的全局配置信息r5conf"><span class="nav-number">2.3.2.</span> <span class="nav-text">RAID5的全局配置信息r5conf</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RAID5中数据结构的状态解析"><span class="nav-number">2.4.</span> <span class="nav-text">RAID5中数据结构的状态解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#stripe-head的状态标识"><span class="nav-number">2.4.1.</span> <span class="nav-text">stripe_head的状态标识</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#dev的状态标识"><span class="nav-number">2.4.2.</span> <span class="nav-text">dev的状态标识</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#参考"><span class="nav-number">3.</span> <span class="nav-text">参考</span></a></li></ol></div>
+        
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image"
+      src="/images/favicon.png"
+      alt="云天">
+  <p class="site-author-name" itemprop="name">云天</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+        
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+    
+      
+      
+      <div class="site-state-item site-state-categories">
+        
+          
+            <a href="/categories/">
+          
+        
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+    
+      
+      
+      <div class="site-state-item site-state-tags">
+        
+          
+            <a href="/tags/">
+          
+        
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+    
+  </nav>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+      
+      
+      
+        
+      
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3RpZ2VydGlwZXI=" title="GitHub &rarr; https://github.com/tigertiper"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+    
+      <span class="links-of-author-item">
+      
+      
+      
+        
+      
+        <span class="exturl" data-url="bWFpbHRvOmlhbXRpYW5wZW5nQGdtYWlsLmNvbQ==" title="E-Mail &rarr; mailto:iamtianpeng@gmail.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+    
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    
+  
+    <span class="exturl cc-opacity" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC8="><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; 2014 – <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">云天</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">79k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">1:12</span>
+</div><div class="footer-custom">
+
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+
+
+  <script src="/lib/anime.min.js?v=3.1.0"></script>
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+<script src="/js/utils.js?v=7.4.0"></script>
+<script src="/js/schemes/muse.js?v=7.4.0"></script>
+
+<script src="/js/next-boot.js?v=7.4.0"></script>
+
+
+
+  
+
+
+
+
+
+
+
+
+  <script src="/js/local-search.js?v=7.4.0"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

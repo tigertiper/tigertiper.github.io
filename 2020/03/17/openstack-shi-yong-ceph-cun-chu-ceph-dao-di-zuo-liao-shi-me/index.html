@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+
+
+
+
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 3.9.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.4.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.4.0">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.4.0">
+  <link rel="mask-icon" href="/images/logo.svg?v=7.4.0" color="#222">
+  <meta name="yandex-verification" content="3ac9ae36ddebb425">
+
+<link rel="stylesheet" href="/css/main.css?v=7.4.0">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css?v=4.7.0">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '7.4.0',
+    exturl: true,
+    sidebar: {"onmobile":true,"display":"post"},
+    copycode: {"enable":true},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":true,"trigger":"auto","top_n_per_article":1,"preload":true},
+    path: 'search.xml',
+    motion: {"enable":false},
+    translation: {
+      copy_button: '复制',
+      copy_success: '复制成功',
+      copy_failure: '复制失败'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="1 背景知识1.1 Ceph简介Ceph是当前非常流行的开源分布式存储系统，具有高扩展性、高性能、高可靠性等优点，同时提供块存储服务(rbd)、对象存储服务(rgw)以及文件系统存储服务(cephfs)。目前也是OpenStack的主流后端存储，和OpenStack亲如兄弟，为OpenStack提供统一共享存储服务。使用Ceph作为OpenStack后端存储，具有如下优点：">
+<meta name="keywords" content="ceph">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OpenStack使用Ceph">
+<meta property="og:url" content="https://tigertiper.github.io/2020/03/17/openstack-shi-yong-ceph-cun-chu-ceph-dao-di-zuo-liao-shi-me/index.html">
+<meta property="og:site_name" content="云天">
+<meta property="og:description" content="1 背景知识1.1 Ceph简介Ceph是当前非常流行的开源分布式存储系统，具有高扩展性、高性能、高可靠性等优点，同时提供块存储服务(rbd)、对象存储服务(rgw)以及文件系统存储服务(cephfs)。目前也是OpenStack的主流后端存储，和OpenStack亲如兄弟，为OpenStack提供统一共享存储服务。使用Ceph作为OpenStack后端存储，具有如下优点：">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2020-03-24T00:29:43.406Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="OpenStack使用Ceph">
+<meta name="twitter:description" content="1 背景知识1.1 Ceph简介Ceph是当前非常流行的开源分布式存储系统，具有高扩展性、高性能、高可靠性等优点，同时提供块存储服务(rbd)、对象存储服务(rgw)以及文件系统存储服务(cephfs)。目前也是OpenStack的主流后端存储，和OpenStack亲如兄弟，为OpenStack提供统一共享存储服务。使用Ceph作为OpenStack后端存储，具有如下优点：">
+  <link rel="canonical" href="https://tigertiper.github.io/2020/03/17/openstack-shi-yong-ceph-cun-chu-ceph-dao-di-zuo-liao-shi-me/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>OpenStack使用Ceph | 云天</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?fd574cb48e199b8e88b0f9f8a18322e2";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">云天</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+      
+      
+      
+        
+        <li class="menu-item menu-item-home">
+      
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+      
+      
+      
+        
+        <li class="menu-item menu-item-about">
+      
+    
+      
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+      
+      
+      
+        
+        <li class="menu-item menu-item-archives">
+      
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">5</span></a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger">
+        
+          <i class="menu-item-icon fa fa-search fa-fw"></i> <br>搜索</a>
+      </li>
+    
+  </ul>
+
+    
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="text" id="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result"></div>
+
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+      <article itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block post">
+    <link itemprop="mainEntityOfPage" href="https://tigertiper.github.io/2020/03/17/openstack-shi-yong-ceph-cun-chu-ceph-dao-di-zuo-liao-shi-me/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="云天">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/favicon.png">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="云天">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">OpenStack使用Ceph<span class="exturl post-edit-link" data-url="aHR0cHM6Ly9naXRodWIuY29tL3RpZ2VydGlwZXIvbXlibG9nL2VkaXQvbWFzdGVyL3NvdXJjZS9fcG9zdHMvT3BlblN0YWNr5L2/55SoQ2VwaOWtmOWCqO+8jENlcGjliLDlupXlgZrkuobku4DkuYgubWQ=" title="编辑"><i class="fa fa-pencil"></i></span>
+
+          
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              
+                
+              
+
+              <time title="创建时间：2020-03-17 13:32:06" itemprop="dateCreated datePublished" datetime="2020-03-17T13:32:06+08:00">2020-03-17</time>
+            </span>
+          
+            
+
+            
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-03-24 08:29:43" itemprop="dateModified" datetime="2020-03-24T08:29:43+08:00">2020-03-24</time>
+              </span>
+            
+          
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/存储技术/" itemprop="url" rel="index"><span itemprop="name">存储技术</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">本文字数：</span>
+              
+              <span>55k</span>
+            </span>
+          
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              
+              <span>50 分钟</span>
+            </span>
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="1-背景知识"><a href="#1-背景知识" class="headerlink" title="1 背景知识"></a>1 背景知识</h2><h2 id="1-1-Ceph简介"><a href="#1-1-Ceph简介" class="headerlink" title="1.1 Ceph简介"></a>1.1 Ceph简介</h2><p>Ceph是当前非常流行的开源分布式存储系统，具有高扩展性、高性能、高可靠性等优点，同时提供块存储服务(rbd)、对象存储服务(rgw)以及文件系统存储服务(cephfs)。目前也是OpenStack的主流后端存储，和OpenStack亲如兄弟，为OpenStack提供统一共享存储服务。使用Ceph作为OpenStack后端存储，具有如下优点：</p><a id="more"></a>
+<ul>
+<li>所有的计算节点共享存储，迁移时不需要拷贝根磁盘，即使计算节点挂了，也能立即在另一个计算节点启动虚拟机（evacuate）。</li>
+<li>利用COW（Copy On Write)特性，创建虚拟机时，只需要基于镜像clone即可，不需要下载整个镜像，而clone操作基本是0开销，从而实现了秒级创建虚拟机。</li>
+<li>Ceph RBD支持thin provisioning，即按需分配空间，有点类似Linux文件系统的sparse稀疏文件。创建一个20GB的虚拟硬盘时，最开始并不占用物理存储空间，只有当写入数据时，才按需分配存储空间。</li>
+</ul>
+<p>Ceph的更多知识可以参考<span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHAlM0EvL2NlcGguY29tLw==" title="https://link.zhihu.com/?target=http%3A//ceph.com/">官方文档<i class="fa fa-external-link"></i></span>，这里我们只关注RBD，RBD管理的核心对象为块设备(block device)，通常我们称为volume，不过Ceph中习惯称之为image（注意和OpenStack image的区别）。Ceph中还有一个pool的概念，类似于namespace，不同的pool可以定义不同的副本数、pg数、放置策略等。每个image都必须指定pool。image的命名规范为<code>pool_name/image_name@snapshot</code>，比如<code>openstack/test-volume@test-snap</code>，表示在<code>openstack</code>pool中<code>test-volume</code>image的快照<code>test-snap</code>。因此以下两个命令效果是等同的:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rbd snap create --pool openstack --image <span class="built_in">test</span>-image --snap <span class="built_in">test</span>-snap</span><br><span class="line">rbd snap create openstack/<span class="built_in">test</span>-image@<span class="built_in">test</span>-snap</span><br></pre></td></tr></table></figure>
+<p>在<code>openstack</code> pool上创建一个1G的image命令为:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack create --size 1024 int32bit-test-1</span><br></pre></td></tr></table></figure>
+<p>image支持快照(snapshot)的功能，创建一个快照即保存当前image的状态，相当于<code>git commit</code>操作，用户可以随时把image回滚到任意快照点上(<code>git reset</code>)。创建快照命令如下:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack snap create int32bit-test-1@snap-1</span><br></pre></td></tr></table></figure>
+<p>查看rbd列表:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ rbd -p openstack ls -l | grep int32bit-test</span><br><span class="line">int32bit-test-1        1024M 2</span><br><span class="line">int32bit-test-1@snap-1 1024M 2</span><br></pre></td></tr></table></figure>
+<p>基于快照可以创建一个新的image，称为clone，clone不会立即复制原来的image，而是使用COW策略，即写时拷贝，只有当需要写入一个对象时，才从parent中拷贝那个对象到本地，因此clone操作基本秒级完成，并且需要注意的是基于同一个快照创建的所有image共享快照之前的image数据，因此在clone之前我们必须保护(protect)快照，被保护的快照不允许删除。clone操作类似于<code>git branch</code>操作，clone一个image命令如下:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack snap protect int32bit-test-1@snap-1</span><br><span class="line">rbd -p openstack <span class="built_in">clone</span> int32bit-test-1@snap-1 int32bit-test-2</span><br></pre></td></tr></table></figure>
+<p>我们可以查看一个image的子image(children)有哪些，也能查看一个image是基于哪个image clone的(parent)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$ rbd -p openstack children int32bit-test-1@snap-1</span><br><span class="line">openstack/int32bit-test-2</span><br><span class="line">$ rbd -p openstack info int32bit-test-2 | grep parent</span><br><span class="line">parent: openstack/int32bit-test-1@snap-1</span><br></pre></td></tr></table></figure>
+<p>以上我们可以发现<code>int32bit-test-2</code>是<code>int32bit-test-1</code>的children，而<code>int32bit-test-1</code>是<code>int32bit-test-2</code>的parent。</p>
+<p>不断地创建快照并clone image，就会形成一条很长的image链，链很长时，不仅会影响读写性能，还会导致管理非常麻烦。可幸的是Ceph支持合并链上的所有image为一个独立的image，这个操作称为<code>flatten</code>，类似于<code>git merge</code>操作，<code>flatten</code>需要一层一层拷贝所有顶层不存在的数据，因此通常会非常耗时。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ rbd -p openstack flatten int32bit-test-2</span><br><span class="line">Image flatten: 31% complete...</span><br></pre></td></tr></table></figure>
+<p>此时我们再次查看其parrent-children关系:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack children int32bit-test-1@snap-1</span><br></pre></td></tr></table></figure>
+<p>此时<code>int32bit-test-1</code>没有children了，<code>int32bit-test-2</code>完全独立了。</p>
+<p>当然Ceph也支持完全拷贝，称为<code>copy</code>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack cp int32bit-test-1 int32bit-test-3</span><br></pre></td></tr></table></figure>
+<p><code>copy</code>会完全拷贝一个image，因此会非常耗时，但注意<code>copy</code>不会拷贝原来的快照信息。</p>
+<p>Ceph支持将一个RBD image导出(<code>export</code>):</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack export int32bit-test-1 int32bit-1.raw</span><br></pre></td></tr></table></figure>
+<p>导出会把整个image导出，Ceph还支持差量导出(export-diff)，即指定从某个快照点开始导出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack export-diff \</span><br><span class="line">int32bit-test-1 --from-snap snap-1 \</span><br><span class="line">--snap snap-2 int32bit-test-1-diff.raw</span><br></pre></td></tr></table></figure>
+<p>以上导出从快照点<code>snap-1</code>到快照点<code>snap-2</code>的数据。</p>
+<p>当然与之相反的操作为<code>import</code>以及<code>import-diff</code>。通过<code>export</code>/<code>import</code>支持image的全量备份，而<code>export-diff</code>/<code>import-diff</code>实现了image的差量备份。</p>
+<p>Rbd image是动态分配存储空间，通过<code>du</code>命令可以查看image实际占用的物理存储空间:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ rbd du int32bit-test-1</span><br><span class="line">NAME            PROVISIONED   USED</span><br><span class="line">int32bit-test-1       1024M 12288k</span><br></pre></td></tr></table></figure>
+<p>以上image分配的大小为1024M，实际占用的空间为12288KB。</p>
+<p>删除image，注意必须先删除其所有快照，并且保证没有依赖的children:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack snap unprotect int32bit-test-1@snap-1</span><br><span class="line">rbd -p openstack snap rm int32bit-test-1@snap-1</span><br><span class="line">rbd -p openstack rm int32bit-test-1</span><br></pre></td></tr></table></figure>
+<h2 id="1-2-OpenStack简介"><a href="#1-2-OpenStack简介" class="headerlink" title="1.2 OpenStack简介"></a>1.2 OpenStack简介</h2><p>OpenStack是一个IaaS层的云计算平台开源实现，关于OpenStack的更多介绍欢迎访问我的个人博客，这里只专注于当OpenStack对接Ceph存储系统时，基于源码分析一步步探测Ceph到底做了些什么工作。本文不会详细介绍OpenStack的整个工作流程，而只关心与Ceph相关的实现，如果有不清楚OpenStack源码架构的，可以参考我之前写的文章<span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC8yODk1OTcyNA==" title="https://zhuanlan.zhihu.com/p/28959724">如何阅读OpenStack源码<i class="fa fa-external-link"></i></span>。</p>
+<p>阅读完本文可以理解以下几个问题:</p>
+<ol>
+<li>为什么上传的镜像必须要转化为raw格式?</li>
+<li>如何高效上传一个大的镜像文件?</li>
+<li>为什么能够实现秒级创建虚拟机？</li>
+<li>为什么创建虚拟机快照需要数分钟时间，而创建volume快照能够秒级完成？</li>
+<li>为什么当有虚拟机存在时，不能删除镜像?</li>
+<li>为什么一定要把备份恢复到一个空卷中，而不能覆盖已经存在的volume？</li>
+<li>从镜像中创建volume，能否删除镜像?</li>
+</ol>
+<p>注意本文都是在基于使用Ceph存储的前提下，即Glance、Nova、Cinder都是使用的Ceph，其它情况下结论不一定成立。</p>
+<p>另外本文会先贴源代码，很长很枯燥，你可以快速跳到<span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHAlM0EvL2ludDMyYml0Lm1lLzIwMTcvMTEvMjMvT3BlblN0YWNrJUU0JUJEJUJGJUU3JTk0JUE4Q2VwaCVFNSVBRCU5OCVFNSU4MiVBOC1DZXBoJUU1JTg4JUIwJUU1JUJBJTk1JUU1JTgxJTlBJUU0JUJBJTg2JUU0JUJCJTgwJUU0JUI5JTg4LyUyMyUyMyUyMDUlMjAlRTYlODAlQkIlRTclQkIlOTM=" title="https://link.zhihu.com/?target=http%3A//int32bit.me/2017/11/23/OpenStack%E4%BD%BF%E7%94%A8Ceph%E5%AD%98%E5%82%A8-Ceph%E5%88%B0%E5%BA%95%E5%81%9A%E4%BA%86%E4%BB%80%E4%B9%88/%23%23%205%20%E6%80%BB%E7%BB%93">总结部分<i class="fa fa-external-link"></i></span>查看OpenStack各个操作对应的Ceph工作。</p>
+<h2 id="2-Glance"><a href="#2-Glance" class="headerlink" title="2 Glance"></a>2 Glance</h2><h2 id="2-1-Glance介绍"><a href="#2-1-Glance介绍" class="headerlink" title="2.1 Glance介绍"></a>2.1 Glance介绍</h2><p><strong>Glance管理的核心实体是image</strong>，它是OpenStack的核心组件之一，为OpenStack提供镜像服务(Image as Service)，主要负责OpenStack镜像以及镜像元数据的生命周期管理、检索、下载等功能。Glance支持将镜像保存到多种存储系统中，后端存储系统称为store，访问镜像的地址称为location，location可以是一个http地址，也可以是一个rbd协议地址。只要实现store的driver就可以作为Glance的存储后端，其中driver的主要接口如下:</p>
+<ul>
+<li>get: 获取镜像的location。</li>
+<li>get_size: 获取镜像的大小。</li>
+<li>get_schemes: 获取访问镜像的URL前缀(协议部分)，比如rbd、swift+https、http等。</li>
+<li>add: 上传镜像到后端存储中。</li>
+<li>delete: 删除镜像。</li>
+<li>set_acls: 设置后端存储的读写访问权限。</li>
+</ul>
+<p>为了便于维护，glance store目前已经作为独立的库从Glance代码中分离出来，由项目<span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHBzJTNBLy9naXRodWIuY29tL29wZW5zdGFjay9nbGFuY2Vfc3RvcmU=" title="https://link.zhihu.com/?target=https%3A//github.com/openstack/glance_store">glance_store<i class="fa fa-external-link"></i></span>维护。目前社区支持的store列表如下:</p>
+<ul>
+<li>filesystem: 保存到本地文件系统，默认保存<code>/var/lib/glance/images</code>到目录下。</li>
+<li>cinder: 保存到Cinder中。</li>
+<li>rbd：保存到Ceph中。</li>
+<li>sheepdog：保存到sheepdog中。</li>
+<li>swift: 保存到Swift对象存储中。</li>
+<li>vmware datastore: 保存到Vmware datastore中。</li>
+<li>http: 以上的所有store都会保存镜像数据，唯独http store比较特殊，它不保存镜像的任何数据，因此没有实现<code>add</code>方法，它仅仅保存镜像的URL地址，启动虚拟机时由计算节点从指定的http地址中下载镜像。</li>
+</ul>
+<p>本文主要关注rbd store，它的源码在<span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHBzJTNBLy9naXRodWIuY29tL29wZW5zdGFjay9nbGFuY2Vfc3RvcmUvYmxvYi9tYXN0ZXIvZ2xhbmNlX3N0b3JlL19kcml2ZXJzL3JiZC5weQ==" title="https://link.zhihu.com/?target=https%3A//github.com/openstack/glance_store/blob/master/glance_store/_drivers/rbd.py">这里<i class="fa fa-external-link"></i></span>，该store的driver代码主要由国内<span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHAlM0EvL2ludDMyYml0Lm1lLzIwMTcvMTEvMjMvT3BlblN0YWNrJUU0JUJEJUJGJUU3JTk0JUE4Q2VwaCVFNSVBRCU5OCVFNSU4MiVBOC1DZXBoJUU1JTg4JUIwJUU1JUJBJTk1JUU1JTgxJTlBJUU0JUJBJTg2JUU0JUJCJTgwJUU0JUI5JTg4L2Zsd2FuZyU0MGNhdGFseXN0Lm5ldC5ueg==" title="https://link.zhihu.com/?target=http%3A//int32bit.me/2017/11/23/OpenStack%E4%BD%BF%E7%94%A8Ceph%E5%AD%98%E5%82%A8-Ceph%E5%88%B0%E5%BA%95%E5%81%9A%E4%BA%86%E4%BB%80%E4%B9%88/flwang%40catalyst.net.nz">Fei Long Wang<i class="fa fa-external-link"></i></span>负责维护，其它store的实现细节可以参考源码<span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHBzJTNBLy9naXRodWIuY29tL29wZW5zdGFjay9nbGFuY2Vfc3RvcmUvdHJlZS9tYXN0ZXIvZ2xhbmNlX3N0b3JlL19kcml2ZXJz" title="https://link.zhihu.com/?target=https%3A//github.com/openstack/glance_store/tree/master/glance_store/_drivers">glance store drivers<i class="fa fa-external-link"></i></span>.</p>
+<h2 id="2-2-镜像上传"><a href="#2-2-镜像上传" class="headerlink" title="2.2 镜像上传"></a>2.2 镜像上传</h2><p>由前面的介绍可知，镜像上传主要由store的<code>add</code>方法实现：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@capabilities.check</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">add</span><span class="params">(self, image_id, image_file, image_size, context=None,</span></span></span><br><span class="line"><span class="function"><span class="params">        verifier=None)</span>:</span></span><br><span class="line">    checksum = hashlib.md5()</span><br><span class="line">    image_name = str(image_id)</span><br><span class="line">    <span class="keyword">with</span> self.get_connection(conffile=self.conf_file,</span><br><span class="line">                             rados_id=self.user) <span class="keyword">as</span> conn:</span><br><span class="line">        fsid = <span class="literal">None</span></span><br><span class="line">        <span class="keyword">if</span> hasattr(conn, <span class="string">'get_fsid'</span>):</span><br><span class="line">            fsid = conn.get_fsid()</span><br><span class="line">        <span class="keyword">with</span> conn.open_ioctx(self.pool) <span class="keyword">as</span> ioctx:</span><br><span class="line">            order = int(math.log(self.WRITE_CHUNKSIZE, <span class="number">2</span>))</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                loc = self._create_image(fsid, conn, ioctx, image_name,</span><br><span class="line">                                         image_size, order)</span><br><span class="line">            <span class="keyword">except</span> rbd.ImageExists:</span><br><span class="line">                msg = _(<span class="string">'RBD image %s already exists'</span>) % image_id</span><br><span class="line">                <span class="keyword">raise</span> exceptions.Duplicate(message=msg)</span><br><span class="line">                ...</span><br></pre></td></tr></table></figure>
+<p>其中注意<code>image_file</code>不是一个文件，而是<code>LimitingReader</code>实例，该实例保存了镜像的所有数据，通过<code>read(bytes)</code>方法读取镜像内容。</p>
+<p>从以上源码中看，glance首先获取ceph的连接session，然后调用<code>_create_image</code>方法创建了一个rbd image，大小和镜像的size一样:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_create_image</span><span class="params">(self, fsid, conn, ioctx, image_name,</span></span></span><br><span class="line"><span class="function"><span class="params">                  size, order, context=None)</span>:</span></span><br><span class="line">    librbd = rbd.RBD()</span><br><span class="line">    features = conn.conf_get(<span class="string">'rbd_default_features'</span>)</span><br><span class="line">    librbd.create(ioctx, image_name, size, order, old_format=<span class="literal">False</span>,</span><br><span class="line">                  features=int(features))</span><br><span class="line">    <span class="keyword">return</span> StoreLocation(&#123;</span><br><span class="line">        <span class="string">'fsid'</span>: fsid,</span><br><span class="line">        <span class="string">'pool'</span>: self.pool,</span><br><span class="line">        <span class="string">'image'</span>: image_name,</span><br><span class="line">        <span class="string">'snapshot'</span>: DEFAULT_SNAPNAME,</span><br><span class="line">    &#125;, self.conf)</span><br></pre></td></tr></table></figure>
+<p>因此以上步骤通过rbd命令表达大致为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rbd -p $&#123;rbd_store_pool&#125; create\ </span><br><span class="line">--size $&#123;image_size&#125; $&#123;image_id&#125;</span><br></pre></td></tr></table></figure>
+<p>在ceph中创建完rbd image后，接下来：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">with</span> rbd.Image(ioctx, image_name) <span class="keyword">as</span> image:</span><br><span class="line">    bytes_written = <span class="number">0</span></span><br><span class="line">    offset = <span class="number">0</span></span><br><span class="line">    chunks = utils.chunkreadable(image_file,</span><br><span class="line">                                 self.WRITE_CHUNKSIZE)</span><br><span class="line">    <span class="keyword">for</span> chunk <span class="keyword">in</span> chunks:</span><br><span class="line">        offset += image.write(chunk, offset)</span><br><span class="line">        checksum.update(chunk)</span><br></pre></td></tr></table></figure>
+<p>可见Glance逐块从image_file中读取数据写入到刚刚创建的rbd image中并计算checksum，其中块大小由<code>rbd_store_chunk_size</code>配置，默认为8MB。</p>
+<p>我们接着看最后步骤:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> loc.snapshot:</span><br><span class="line">    image.create_snap(loc.snapshot)</span><br><span class="line">    image.protect_snap(loc.snapshot)</span><br></pre></td></tr></table></figure>
+<p>从代码中可以看出，最后步骤为创建image快照（快照名为snap）并保护起来。</p>
+<p>假设我们上传的镜像为cirros，镜像大小为39MB，镜像uuid为<code>d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6</code>，配置保存在ceph的<code>openstack</code> pool中，则对应ceph的操作流程大致为:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack create \</span><br><span class="line">--size 39 d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6</span><br><span class="line">rbd -p openstack snap create \</span><br><span class="line">d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6@snap</span><br><span class="line">rbd -p openstack snap protect \</span><br><span class="line">d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6@snap</span><br></pre></td></tr></table></figure>
+<p>我们可以通过rbd命令验证:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ rbd ls -l | grep d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6</span><br><span class="line">d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6      40162k  2</span><br><span class="line">d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6@snap 40162k  2 yes</span><br></pre></td></tr></table></figure>
+<h2 id="启示"><a href="#启示" class="headerlink" title="启示"></a>启示</h2><p>我们前面介绍了镜像上传到Ceph的过程，省略了镜像上传到Glance的流程，但毋容置疑的是镜像肯定是通过Glance API上传到Glance中的。当镜像非常大时，由于通过Glance API走HTTP协议，导致非常耗时且占用API管理网带宽。我们可以通过<code>rbd import</code>直接导入镜像的方式大幅度提高上传镜像的效率。</p>
+<p>首先使用Glance创建一个空镜像，记下它的uuid:``</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">glance image-create \</span><br><span class="line">d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6 | awk <span class="string">'/\sid\s/&#123;print $4&#125;'</span>&#125;</span><br></pre></td></tr></table></figure>
+<p>假设uuid为<code>d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6</code>，使用rbd命令直接导入镜像并创建快照：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack import cirros.raw \</span><br><span class="line">--image=d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6</span><br><span class="line">rbd -p openstack snap create \</span><br><span class="line">d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6@snap</span><br><span class="line">rbd -p openstack snap protect \</span><br><span class="line">d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6@snap</span><br></pre></td></tr></table></figure>
+<p>设置glance镜像location url:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">FS_ID=`ceph -s | grep cluster | awk <span class="string">'&#123;print $2&#125;'</span>`</span><br><span class="line">glance location-add \</span><br><span class="line">--url rbd://<span class="variable">$&#123;FS_ID&#125;</span>/openstack/d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6/snap \</span><br><span class="line">d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6</span><br></pre></td></tr></table></figure>
+<p>设置glance镜像其它属性：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">glance image-update --name=&quot;cirros&quot; \</span><br><span class="line">--disk-format=raw \</span><br><span class="line">--container-format=bare d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6</span><br></pre></td></tr></table></figure>
+<h2 id="2-3-镜像删除"><a href="#2-3-镜像删除" class="headerlink" title="2.3 镜像删除"></a>2.3 镜像删除</h2><p>删除镜像就是相反的过程，即先执行<code>unprotext</code> -&gt; <code>snap rm</code> -&gt; <code>rm</code>，如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    self._unprotect_snapshot(image, snapshot_name)</span><br><span class="line">    image.remove_snap(snapshot_name)</span><br><span class="line"><span class="keyword">except</span> rbd.ImageBusy <span class="keyword">as</span> exc:</span><br><span class="line">    <span class="keyword">raise</span> exceptions.InUseByStore()</span><br><span class="line">rbd.RBD().remove(ioctx, image_name)</span><br></pre></td></tr></table></figure>
+<p>删除镜像必须保证当前rbd image没有子image，否则删除会失败。</p>
+<h2 id="3-Nova"><a href="#3-Nova" class="headerlink" title="3 Nova"></a>3 Nova</h2><h2 id="3-1-Nova介绍"><a href="#3-1-Nova介绍" class="headerlink" title="3.1 Nova介绍"></a>3.1 Nova介绍</h2><p><strong>Nova管理的核心实体为server</strong>，为OpenStack提供计算服务，它是OpenStack最核心的组件。注意Nova中的server不只是指虚拟机，它可以是任何计算资源的抽象，除了虚拟机以外，也有可能是baremetal裸机、容器等。</p>
+<p>不过我们在这里假定:</p>
+<ul>
+<li>server为虚拟机。</li>
+<li>image type为rbd。</li>
+<li>compute driver为libvirt。</li>
+</ul>
+<p>启动虚拟机之前首先需要准备根磁盘(root disk)，Nova称为image，和Glance一样，Nova的image也支持存储到本地磁盘、Ceph以及Cinder(boot from volume)中。需要注意的是，image保存到哪里是通过image type决定的，存储到本地磁盘可以是raw、qcow2、ploop等，如果image type为rbd，则image存储到Ceph中。不同的image type由不同的image backend负责，其中rbd的backend为<code>nova/virt/libvirt/imageackend</code>中的<code>Rbd</code>类模块实现。</p>
+<h2 id="3-2-创建虚拟机"><a href="#3-2-创建虚拟机" class="headerlink" title="3.2 创建虚拟机"></a>3.2 创建虚拟机</h2><p>创建虚拟机的过程不再详细分析，不清楚的可以查看我之前写的博客，我们直接进入研究Nova的libvirt driver是如何为虚拟机准备根磁盘image的，代码位于<code>nova/virt/libvirt/driver.py</code>的<code>spawn</code>方法，其中创建image调用了<code>_create_image</code>方法。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">spawn</span><span class="params">(self, context, instance, image_meta, injected_files,</span></span></span><br><span class="line"><span class="function"><span class="params">          admin_password, network_info=None, block_device_info=None)</span>:</span></span><br><span class="line">    ...</span><br><span class="line">    self._create_image(context, instance, disk_info[<span class="string">'mapping'</span>],</span><br><span class="line">                       injection_info=injection_info,</span><br><span class="line">                       block_device_info=block_device_info)</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<p><code>_create_image</code>方法部分代码如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_create_image</span><span class="params">(self, context, instance,</span></span></span><br><span class="line"><span class="function"><span class="params">                  disk_mapping, injection_info=None, suffix=<span class="string">''</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                  disk_images=None, block_device_info=None,</span></span></span><br><span class="line"><span class="function"><span class="params">                  fallback_from_host=None,</span></span></span><br><span class="line"><span class="function"><span class="params">                  ignore_bdi_for_swap=False)</span>:</span></span><br><span class="line">    booted_from_volume = self._is_booted_from_volume(block_device_info)</span><br><span class="line">    ...</span><br><span class="line">    <span class="comment"># ensure directories exist and are writable</span></span><br><span class="line">    fileutils.ensure_tree(libvirt_utils.get_instance_path(instance))</span><br><span class="line">    ...</span><br><span class="line">    self._create_and_inject_local_root(context, instance,</span><br><span class="line">                                       booted_from_volume, suffix,</span><br><span class="line">                                       disk_images, injection_info,</span><br><span class="line">                                       fallback_from_host)</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<p>该方法首先在本地创建虚拟机的数据目录<code>/var/lib/nova/instances/${uuid}/</code>，然后调用了<code>_create_and_inject_local_root</code>方法创建根磁盘。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_create_and_inject_local_root</span><span class="params">(self, context, instance,</span></span></span><br><span class="line"><span class="function"><span class="params">                                  booted_from_volume, suffix, disk_images,</span></span></span><br><span class="line"><span class="function"><span class="params">                                  injection_info, fallback_from_host)</span>:</span></span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> booted_from_volume:</span><br><span class="line">        root_fname = imagecache.get_cache_fname(disk_images[<span class="string">'image_id'</span>])</span><br><span class="line">        size = instance.flavor.root_gb * units.Gi</span><br><span class="line">        backend = self.image_backend.by_name(instance, <span class="string">'disk'</span> + suffix,</span><br><span class="line">                                             CONF.libvirt.images_type)</span><br><span class="line">        <span class="keyword">if</span> backend.SUPPORTS_CLONE:</span><br><span class="line">            <span class="function"><span class="keyword">def</span> <span class="title">clone_fallback_to_fetch</span><span class="params">(*args, **kwargs)</span>:</span></span><br><span class="line">                <span class="keyword">try</span>:</span><br><span class="line">                    backend.clone(context, disk_images[<span class="string">'image_id'</span>])</span><br><span class="line">                <span class="keyword">except</span> exception.ImageUnacceptable:</span><br><span class="line">                    libvirt_utils.fetch_image(*args, **kwargs)</span><br><span class="line">            fetch_func = clone_fallback_to_fetch</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            fetch_func = libvirt_utils.fetch_image</span><br><span class="line">        self._try_fetch_image_cache(backend, fetch_func, context,</span><br><span class="line">                                    root_fname, disk_images[<span class="string">'image_id'</span>],</span><br><span class="line">                                    instance, size, fallback_from_host)</span><br><span class="line">        ...</span><br></pre></td></tr></table></figure>
+<p>其中<code>image_backend.by_name()</code>方法通过image type名称返回image <code>backend</code>实例，这里是<code>Rbd</code>。从代码中看出，如果backend支持clone操作(SUPPORTS_CLONE)，则会调用backend的<code>clone()</code>方法，否则通过<code>fetch_image()</code>方法下载镜像。显然Ceph rbd是支持clone的。我们查看<code>Rbd</code>的<code>clone()</code>方法，代码位于<code>nova/virt/libvirt/imagebackend.py</code>模块:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">clone</span><span class="params">(self, context, image_id_or_uri)</span>:</span></span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">for</span> location <span class="keyword">in</span> locations:</span><br><span class="line">        <span class="keyword">if</span> self.driver.is_cloneable(location, image_meta):</span><br><span class="line">            LOG.debug(<span class="string">'Selected location: %(loc)s'</span>, &#123;<span class="string">'loc'</span>: location&#125;)</span><br><span class="line">            <span class="keyword">return</span> self.driver.clone(location, self.rbd_name)</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<p>该方法遍历Glance image的所有locations，然后通过<code>driver.is_cloneable()</code>方法判断是否支持clone，若支持clone则调用<code>driver.clone()</code>方法。其中<code>driver</code>是Nova的storage driver，代码位于<code>nova/virt/libvirt/storage</code>，其中rbd driver在<code>rbd_utils.py</code>模块下，我们首先查看<code>is_cloneable()</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">is_cloneable</span><span class="params">(self, image_location, image_meta)</span>:</span></span><br><span class="line">       url = image_location[<span class="string">'url'</span>]</span><br><span class="line">       <span class="keyword">try</span>:</span><br><span class="line">           fsid, pool, image, snapshot = self.parse_url(url)</span><br><span class="line">       <span class="keyword">except</span> exception.ImageUnacceptable <span class="keyword">as</span> e:</span><br><span class="line">           <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">       <span class="keyword">if</span> self.get_fsid() != fsid:</span><br><span class="line">           <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">       <span class="keyword">if</span> image_meta.get(<span class="string">'disk_format'</span>) != <span class="string">'raw'</span>:</span><br><span class="line">           <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">       <span class="comment"># check that we can read the image</span></span><br><span class="line">       <span class="keyword">try</span>:</span><br><span class="line">           <span class="keyword">return</span> self.exists(image, pool=pool, snapshot=snapshot)</span><br><span class="line">       <span class="keyword">except</span> rbd.Error <span class="keyword">as</span> e:</span><br><span class="line">           LOG.debug(<span class="string">'Unable to open image %(loc)s: %(err)s'</span>,</span><br><span class="line">                     dict(loc=url, err=e))</span><br><span class="line">           <span class="keyword">return</span> <span class="literal">False</span></span><br></pre></td></tr></table></figure>
+<p>可见如下情况不支持clone:</p>
+<ol>
+<li>Glance中的rbd image location不合法，rbd location必须包含fsid、pool、image id，snapshot 4个字段，字段通过<code>/</code>划分。</li>
+<li>Glance和Nova对接的是不同的Ceph集群。</li>
+<li><strong>Glance镜像非raw格式。</strong></li>
+<li>Glance的rbd image不存在名为<code>snap</code>的快照。</li>
+</ol>
+<p>其中尤其注意第三条，如果镜像为非raw格式，Nova创建虚拟机时不支持clone操作，因此必须从Glance中下载镜像。这就是为什么Glance使用Ceph存储时，镜像必须转化为raw格式的原因。</p>
+<p>最后我们看<code>clone</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">clone</span><span class="params">(self, image_location, dest_name, dest_pool=None)</span>:</span></span><br><span class="line">    _fsid, pool, image, snapshot = self.parse_url(</span><br><span class="line">            image_location[<span class="string">'url'</span>])</span><br><span class="line">    <span class="keyword">with</span> RADOSClient(self, str(pool)) <span class="keyword">as</span> src_client:</span><br><span class="line">        <span class="keyword">with</span> RADOSClient(self, dest_pool) <span class="keyword">as</span> dest_client:</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                RbdProxy().clone(src_client.ioctx,</span><br><span class="line">                                 image,</span><br><span class="line">                                 snapshot,</span><br><span class="line">                                 dest_client.ioctx,</span><br><span class="line">                                 str(dest_name),</span><br><span class="line">                                 features=src_client.features)</span><br><span class="line">            <span class="keyword">except</span> rbd.PermissionError:</span><br><span class="line">                <span class="keyword">raise</span> exception.Forbidden(_(<span class="string">'no write permission on '</span></span><br><span class="line">                                            <span class="string">'storage pool %s'</span>) % dest_pool)</span><br></pre></td></tr></table></figure>
+<p>该方法只调用了ceph的<code>clone</code>方法，可能会有人疑问都是使用同一个Ceph cluster，为什么需要两个<code>ioctx</code>？这是因为Glance和Nova可能使用的不是同一个Ceph pool，一个pool对应一个<code>ioctx</code>。</p>
+<p>以上操作大致相当于如下rbd命令:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd clone \</span><br><span class="line">$&#123;glance_pool&#125;/$&#123;镜像uuid&#125;@snap \</span><br><span class="line">$&#123;nova_pool&#125;/$&#123;虚拟机uuid&#125;.disk</span><br></pre></td></tr></table></figure>
+<p>假设Nova和Glance使用的pool都是<code>openstack</code>，Glance镜像uuid为<code>d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6</code>，Nova虚拟机的uuid为<code>cbf44290-f142-41f8-86e1-d63c902b38ed</code>，则对应的rbd命令大致为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd clone \</span><br><span class="line">openstack/d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6@snap \</span><br><span class="line">openstack/cbf44290-f142-41f8-86e1-d63c902b38ed_disk</span><br></pre></td></tr></table></figure>
+<p>我们进一步验证:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">int32bit $ rbd -p openstack ls | grep cbf44290-f142-41f8-86e1-d63c902b38ed</span><br><span class="line">cbf44290-f142-41f8-86e1-d63c902b38ed_disk</span><br><span class="line">int32bit $ rbd -p openstack info cbf44290-f142-41f8-86e1-d63c902b38ed_disk</span><br><span class="line">rbd image &apos;cbf44290-f142-41f8-86e1-d63c902b38ed_disk&apos;:</span><br><span class="line">    size 2048 MB in 256 objects</span><br><span class="line">    order 23 (8192 kB objects)</span><br><span class="line">    block_name_prefix: rbd_data.9f756763845e</span><br><span class="line">    format: 2</span><br><span class="line">    features: layering, exclusive-lock, object-map, fast-diff, deep-flatten</span><br><span class="line">    flags:</span><br><span class="line">    create_timestamp: Wed Nov 22 05:11:17 2017</span><br><span class="line">    parent: openstack/d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6@snap</span><br><span class="line">    overlap: 40162 kB</span><br></pre></td></tr></table></figure>
+<p>由输出可见，Nova确实创建了一个名为<code>cbf44290-f142-41f8-86e1-d63c902b38ed_disk</code> rbd image，并且它的parent为<code>openstack/d1a06da9-8ccd-4d3e-9b63-6dcd3ead29e6@snap</code>。</p>
+<h2 id="启示-1"><a href="#启示-1" class="headerlink" title="启示"></a>启示</h2><ol>
+<li>创建虚拟机时并没有拷贝镜像，也不需要下载镜像，而是一个简单clone操作，因此创建虚拟机基本可以在秒级完成。</li>
+<li>如果镜像中还有虚拟机依赖，则不能删除该镜像，换句话说，删除镜像之前，必须删除基于该镜像创建的所有虚拟机。</li>
+</ol>
+<h2 id="3-3-创建虚拟机快照"><a href="#3-3-创建虚拟机快照" class="headerlink" title="3.3 创建虚拟机快照"></a>3.3 创建虚拟机快照</h2><p>首先说点题外话，我感觉Nova把create image和create snapshot弄混乱了，我理解的这二者的区别:</p>
+<ul>
+<li>create image：把虚拟机的根磁盘上传到Glance中。</li>
+<li>create snapshot: 根据image格式对虚拟机做快照，qcow2和rbd格式显然都支持快照。快照不应该保存到Glance中，由Nova或者Cinder(boot from Cinder)管理。</li>
+</ul>
+<p>可事实上，Nova创建快照的子命令为<code>image-create</code>，API方法也叫<code>_action_create_image()</code>，之后调用的方法叫<code>snapshot()</code>。而实际上，对于大多数image type，如果不是从云硬盘启动(boot from volume)，其实就是create image，即上传镜像到Glance中，而非真正的snapshot。</p>
+<p>当然只是命名的区别而已，这里对create image和create snapshot不做任何区别。</p>
+<p>虚拟机的快照由<code>libvirt</code>driver的<code>snapshot()</code>方法实现，代码位于<code>nova/virt/libvirt/driver.py</code>，核心代码如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">snapshot</span><span class="params">(self, context, instance, image_id, update_task_state)</span>:</span></span><br><span class="line">    ...</span><br><span class="line">    root_disk = self.image_backend.by_libvirt_path(</span><br><span class="line">        instance, disk_path, image_type=source_type)</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        update_task_state(task_state=task_states.IMAGE_UPLOADING,</span><br><span class="line">                          expected_state=task_states.IMAGE_PENDING_UPLOAD)</span><br><span class="line">        metadata[<span class="string">'location'</span>] = root_disk.direct_snapshot(</span><br><span class="line">            context, snapshot_name, image_format, image_id,</span><br><span class="line">            instance.image_ref)</span><br><span class="line">        self._snapshot_domain(context, live_snapshot, virt_dom, state,</span><br><span class="line">                              instance)</span><br><span class="line">        self._image_api.update(context, image_id, metadata,</span><br><span class="line">                               purge_props=<span class="literal">False</span>)</span><br><span class="line">    <span class="keyword">except</span> (NotImplementedError, exception.ImageUnacceptable) <span class="keyword">as</span> e:</span><br><span class="line">        ...</span><br></pre></td></tr></table></figure>
+<p>Nova首先通过<code>disk_path</code>获取对应的image backend，这里返回的是<code>imagebackend.Rbd</code>，然后调用了backend的<code>direct_snapshot()</code>方法，该方法如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">direct_snapshot</span><span class="params">(self, context, snapshot_name, image_format,</span></span></span><br><span class="line"><span class="function"><span class="params">                    image_id, base_image_id)</span>:</span></span><br><span class="line">    fsid = self.driver.get_fsid()</span><br><span class="line">    parent_pool = self._get_parent_pool(context, base_image_id, fsid)</span><br><span class="line"></span><br><span class="line">    self.driver.create_snap(self.rbd_name, snapshot_name, protect=<span class="literal">True</span>)</span><br><span class="line">    location = &#123;<span class="string">'url'</span>: <span class="string">'rbd://%(fsid)s/%(pool)s/%(image)s/%(snap)s'</span> %</span><br><span class="line">                       dict(fsid=fsid,</span><br><span class="line">                            pool=self.pool,</span><br><span class="line">                            image=self.rbd_name,</span><br><span class="line">                            snap=snapshot_name)&#125;</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        self.driver.clone(location, image_id, dest_pool=parent_pool)</span><br><span class="line">        self.driver.flatten(image_id, pool=parent_pool)</span><br><span class="line">    <span class="keyword">finally</span>:</span><br><span class="line">        self.cleanup_direct_snapshot(location)</span><br><span class="line">    self.driver.create_snap(image_id, <span class="string">'snap'</span>, pool=parent_pool,</span><br><span class="line">                            protect=<span class="literal">True</span>)</span><br><span class="line">    <span class="keyword">return</span> (<span class="string">'rbd://%(fsid)s/%(pool)s/%(image)s/snap'</span> %</span><br><span class="line">            dict(fsid=fsid, pool=parent_pool, image=image_id))</span><br></pre></td></tr></table></figure>
+<p>从代码中分析，大体可分为以下几个步骤:</p>
+<ul>
+<li>获取Ceph集群的fsid。</li>
+<li>对虚拟机根磁盘对应的rbd image创建一个临时快照，快照名是一个随机uuid。</li>
+<li>将创建的快照保护起来（protect）。</li>
+<li>基于快照clone一个新的rbd image，名称为snapshot uuid。</li>
+<li>对clone的image执行flatten操作。</li>
+<li>删除创建的临时快照。</li>
+<li>对clone的rbd image创建快照，快照名为snap，并执行protect。</li>
+</ul>
+<p>对应rbd命令，假设虚拟机uuid为<code>cbf44290-f142-41f8-86e1-d63c902b38ed</code>，快照的uuid为<code>db2b6552-394a-42d2-9de8-2295fe2b3180</code>，则对应rbd命令为:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Snapshot the disk and clone it into Glance's storage pool</span></span><br><span class="line">rbd -p openstack snap create \</span><br><span class="line">cbf44290-f142-41f8-86e1-d63c902b38ed_disk@3437a9bbba5842629cc76e78aa613c70</span><br><span class="line">rbd -p openstack snap protect \</span><br><span class="line">cbf44290-f142-41f8-86e1-d63c902b38ed_disk@3437a9bbba5842629cc76e78aa613c70</span><br><span class="line">rbd -p openstack <span class="built_in">clone</span> \</span><br><span class="line">cbf44290-f142-41f8-86e1-d63c902b38ed_disk@3437a9bbba5842629cc76e78aa613c70 \</span><br><span class="line">db2b6552-394a-42d2-9de8-2295fe2b3180</span><br><span class="line"><span class="comment"># Flatten the image, which detaches it from the source snapshot</span></span><br><span class="line">rbd -p openstack flatten \</span><br><span class="line">db2b6552-394a-42d2-9de8-2295fe2b3180</span><br><span class="line"><span class="comment"># all done with the source snapshot, clean it up</span></span><br><span class="line">rbd -p openstack snap unprotect \</span><br><span class="line">cbf44290-f142-41f8-86e1-d63c902b38ed_disk@3437a9bbba5842629cc76e78aa613c70</span><br><span class="line">rbd -p openstack snap rm \</span><br><span class="line">cbf44290-f142-41f8-86e1-d63c902b38ed_disk@3437a9bbba5842629cc76e78aa613c70</span><br><span class="line"><span class="comment"># Makes a protected snapshot called 'snap' on uploaded images </span></span><br><span class="line"><span class="comment"># and hands it out</span></span><br><span class="line">rbd -p openstack snap create \</span><br><span class="line">db2b6552-394a-42d2-9de8-2295fe2b3180@snap</span><br><span class="line">rbd -p openstack snap protect \</span><br><span class="line">db2b6552-394a-42d2-9de8-2295fe2b3180@snap</span><br></pre></td></tr></table></figure>
+<p>其中<code>3437a9bbba5842629cc76e78aa613c70</code>是产生的临时快照名称，它一个随机生成的uuid。</p>
+<h2 id="启示-2"><a href="#启示-2" class="headerlink" title="启示"></a>启示</h2><p>其它存储后端主要耗时会在镜像上传过程，而当使用Ceph存储时，主要耗在rbd的flatten过程，因此创建虚拟机快照通常要好几分钟的时间。有人可能会疑问，为什么一定要执行flatten操作呢，直接clone不就完事了吗？社区这么做是有原因的：</p>
+<ul>
+<li>如果不执行flatten操作，则虚拟机快照依赖于虚拟机，换句话说，虚拟机只要存在快照就不能删除虚拟机了，这显然不合理。</li>
+<li>上一个问题继续延展，假设基于快照又创建虚拟机，虚拟机又创建快照，如此反复，整个rbd image的依赖会非常复杂，根本管理不了。</li>
+<li>当rbd image链越来越长时，对应的IO读写性能也会越来越差。</li>
+<li>…</li>
+</ul>
+<h2 id="3-4-删除虚拟机"><a href="#3-4-删除虚拟机" class="headerlink" title="3.4 删除虚拟机"></a>3.4 删除虚拟机</h2><p>libvirt driver删除虚拟机的代码位于<code>nova/virt/libvirt/driver.py</code>的<code>destroy</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">destroy</span><span class="params">(self, context, instance, network_info, block_device_info=None,</span></span></span><br><span class="line"><span class="function"><span class="params">                destroy_disks=True)</span>:</span></span><br><span class="line">    self._destroy(instance)</span><br><span class="line">    self.cleanup(context, instance, network_info, block_device_info,</span><br><span class="line">                 destroy_disks)</span><br></pre></td></tr></table></figure>
+<p>注意前面的<code>_destroy</code>方法其实就是虚拟机关机操作，即Nova会首先让虚拟机先关机再执行删除操作。紧接着调用<code>cleanup()</code>方法，该方法执行资源的清理工作。这里我们只关注清理disks的过程:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> destroy_disks:</span><br><span class="line">    <span class="comment"># NOTE(haomai): destroy volumes if needed</span></span><br><span class="line">    <span class="keyword">if</span> CONF.libvirt.images_type == <span class="string">'lvm'</span>:</span><br><span class="line">        self._cleanup_lvm(instance, block_device_info)</span><br><span class="line">    <span class="keyword">if</span> CONF.libvirt.images_type == <span class="string">'rbd'</span>:</span><br><span class="line">        self._cleanup_rbd(instance)</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<p>由于我们的image type为rbd，因此调用的<code>_cleanup_rbd()</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_cleanup_rbd</span><span class="params">(self, instance)</span>:</span></span><br><span class="line">    <span class="keyword">if</span> instance.task_state == task_states.RESIZE_REVERTING:</span><br><span class="line">        filter_fn = <span class="keyword">lambda</span> disk: (disk.startswith(instance.uuid) <span class="keyword">and</span></span><br><span class="line">                                  disk.endswith(<span class="string">'disk.local'</span>))</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        filter_fn = <span class="keyword">lambda</span> disk: disk.startswith(instance.uuid)</span><br><span class="line">    LibvirtDriver._get_rbd_driver().cleanup_volumes(filter_fn)</span><br></pre></td></tr></table></figure>
+<p>我们只考虑正常删除操作，忽略resize撤回操作，则<code>filter_fn</code>为<code>lambda disk: disk.startswith(instance.uuid)</code>，即所有以虚拟机uuid开头的disk(rbd image)。需要注意，这里没有调用<code>imagebackend</code>的<code>Rbd</code> driver，而是直接调用<code>storage driver</code>，代码位于<code>nova/virt/libvirt/storage/rbd_utils.py</code>:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">cleanup_volumes</span><span class="params">(self, filter_fn)</span>:</span></span><br><span class="line">    <span class="keyword">with</span> RADOSClient(self, self.pool) <span class="keyword">as</span> client:</span><br><span class="line">        volumes = RbdProxy().list(client.ioctx)</span><br><span class="line">        <span class="keyword">for</span> volume <span class="keyword">in</span> filter(filter_fn, volumes):</span><br><span class="line">            self._destroy_volume(client, volume)</span><br></pre></td></tr></table></figure>
+<p>该方法首先获取所有的rbd image列表，然后通过<code>filter_fn</code>方法过滤以虚拟机uuid开头的image，调用<code>_destroy_volume</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_destroy_volume</span><span class="params">(self, client, volume, pool=None)</span>:</span></span><br><span class="line">    <span class="string">"""Destroy an RBD volume, retrying as needed.</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_cleanup_vol</span><span class="params">(ioctx, volume, retryctx)</span>:</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            RbdProxy().remove(ioctx, volume)</span><br><span class="line">            <span class="keyword">raise</span> loopingcall.LoopingCallDone(retvalue=<span class="literal">False</span>)</span><br><span class="line">        <span class="keyword">except</span> rbd.ImageHasSnapshots:</span><br><span class="line">            self.remove_snap(volume, libvirt_utils.RESIZE_SNAPSHOT_NAME,</span><br><span class="line">                             ignore_errors=<span class="literal">True</span>)</span><br><span class="line">        <span class="keyword">except</span> (rbd.ImageBusy, rbd.ImageHasSnapshots):</span><br><span class="line">            LOG.warning(<span class="string">'rbd remove %(volume)s in pool %(pool)s failed'</span>,</span><br><span class="line">                        &#123;<span class="string">'volume'</span>: volume, <span class="string">'pool'</span>: self.pool&#125;)</span><br><span class="line">        retryctx[<span class="string">'retries'</span>] -= <span class="number">1</span></span><br><span class="line">        <span class="keyword">if</span> retryctx[<span class="string">'retries'</span>] &lt;= <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">raise</span> loopingcall.LoopingCallDone()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># NOTE(danms): We let it go for ten seconds</span></span><br><span class="line">    retryctx = &#123;<span class="string">'retries'</span>: <span class="number">10</span>&#125;</span><br><span class="line">    timer = loopingcall.FixedIntervalLoopingCall(</span><br><span class="line">        _cleanup_vol, client.ioctx, volume, retryctx)</span><br><span class="line">    timed_out = timer.start(interval=<span class="number">1</span>).wait()</span><br><span class="line">    <span class="keyword">if</span> timed_out:</span><br><span class="line">        <span class="comment"># NOTE(danms): Run this again to propagate the error, but</span></span><br><span class="line">        <span class="comment"># if it succeeds, don't raise the loopingcall exception</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            _cleanup_vol(client.ioctx, volume, retryctx)</span><br><span class="line">        <span class="keyword">except</span> loopingcall.LoopingCallDone:</span><br><span class="line">            <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+<p>该方法最多会尝试10+1次<code>_cleanup_vol()</code>方法删除rbd image，如果有快照，则会先删除快照。</p>
+<p>假设虚拟机的uuid为<code>cbf44290-f142-41f8-86e1-d63c902b38ed</code>，则对应rbd命令大致为:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> image <span class="keyword">in</span> $(rbd -p openstack ls | grep <span class="string">'^cbf44290-f142-41f8-86e1-d63c902b38ed'</span>);</span><br><span class="line"><span class="keyword">do</span> </span><br><span class="line">    rbd -p openstack rm <span class="string">"<span class="variable">$image</span>"</span>;</span><br><span class="line"><span class="keyword">done</span></span><br></pre></td></tr></table></figure>
+<h2 id="4-Cinder"><a href="#4-Cinder" class="headerlink" title="4 Cinder"></a>4 Cinder</h2><h2 id="4-1-Cinder介绍"><a href="#4-1-Cinder介绍" class="headerlink" title="4.1 Cinder介绍"></a>4.1 Cinder介绍</h2><p>Cinder是OpenStack的块存储服务，类似AWS的EBS，管理的实体为volume。Cinder并没有实现volume provide功能，而是负责管理各种存储系统的volume，比如Ceph、fujitsu、netapp等，支持volume的创建、快照、备份等功能，对接的存储系统我们称为backend。只要实现了<code>cinder/volume/driver.py</code>中<code>VolumeDriver</code>类定义的接口，Cinder就可以对接该存储系统。</p>
+<p>Cinder不仅支持本地volume的管理，还能把本地volume备份到远端存储系统中，比如备份到另一个Ceph集群或者Swift对象存储系统中，本文将只考虑从源Ceph集群备份到远端Ceph集群中的情况。</p>
+<h2 id="4-2-创建volume"><a href="#4-2-创建volume" class="headerlink" title="4.2 创建volume"></a>4.2 创建volume</h2><p>创建volume由cinder-volume服务完成，入口为<code>cinder/volume/manager.py</code>的<code>create_volume()</code>方法，</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">create_volume</span><span class="params">(self, context, volume, request_spec=None,</span></span></span><br><span class="line"><span class="function"><span class="params">                  filter_properties=None, allow_reschedule=True)</span>:</span></span><br><span class="line">    ...              </span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="comment"># NOTE(flaper87): Driver initialization is</span></span><br><span class="line">        <span class="comment"># verified by the task itself.</span></span><br><span class="line">        flow_engine = create_volume.get_flow(</span><br><span class="line">            context_elevated,</span><br><span class="line">            self,</span><br><span class="line">            self.db,</span><br><span class="line">            self.driver,</span><br><span class="line">            self.scheduler_rpcapi,</span><br><span class="line">            self.host,</span><br><span class="line">            volume,</span><br><span class="line">            allow_reschedule,</span><br><span class="line">            context,</span><br><span class="line">            request_spec,</span><br><span class="line">            filter_properties,</span><br><span class="line">            image_volume_cache=self.image_volume_cache,</span><br><span class="line">        )</span><br><span class="line">    <span class="keyword">except</span> Exception:</span><br><span class="line">        msg = _(<span class="string">"Create manager volume flow failed."</span>)</span><br><span class="line">        LOG.exception(msg, resource=&#123;<span class="string">'type'</span>: <span class="string">'volume'</span>, <span class="string">'id'</span>: volume.id&#125;)</span><br><span class="line">        <span class="keyword">raise</span> exception.CinderException(msg)</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<p>Cinder创建volume的流程使用了<span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHBzJTNBLy9kb2NzLm9wZW5zdGFjay5vcmcvdGFza2Zsb3cvbGF0ZXN0Lw==" title="https://link.zhihu.com/?target=https%3A//docs.openstack.org/taskflow/latest/">taskflow框架<i class="fa fa-external-link"></i></span>，taskflow具体实现位于<code>cinder/volume/flows/manager/create_volume.py</code>，我们关注其<code>execute()</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">execute</span><span class="params">(self, context, volume, volume_spec)</span>:</span></span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">if</span> create_type == <span class="string">'raw'</span>:</span><br><span class="line">        model_update = self._create_raw_volume(volume, **volume_spec)</span><br><span class="line">    <span class="keyword">elif</span> create_type == <span class="string">'snap'</span>:</span><br><span class="line">        model_update = self._create_from_snapshot(context, volume,</span><br><span class="line">                                                  **volume_spec)</span><br><span class="line">    <span class="keyword">elif</span> create_type == <span class="string">'source_vol'</span>:</span><br><span class="line">        model_update = self._create_from_source_volume(</span><br><span class="line">            context, volume, **volume_spec)</span><br><span class="line">    <span class="keyword">elif</span> create_type == <span class="string">'image'</span>:</span><br><span class="line">        model_update = self._create_from_image(context,</span><br><span class="line">                                               volume,</span><br><span class="line">                                               **volume_spec)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">raise</span> exception.VolumeTypeNotFound(volume_type_id=create_type)</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<p>从代码中我们可以看出，创建volume分为4种类型：</p>
+<ul>
+<li>raw: 创建空白卷。</li>
+<li>create from snapshot: 基于快照创建volume。</li>
+<li>create from volume: 相当于复制一个已存在的volume。</li>
+<li>create from image: 基于Glance image创建一个volume。</li>
+</ul>
+<h2 id="raw"><a href="#raw" class="headerlink" title="raw"></a>raw</h2><p>创建空白卷是最简单的方式，代码如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_create_raw_volume</span><span class="params">(self, volume, **kwargs)</span>:</span></span><br><span class="line">    ret = self.driver.create_volume(volume)</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<p>直接调用driver的<code>create_volume()</code>方法，这里driver是<code>RBDDriver</code>，代码位于<code>cinder/volume/drivers/rbd.py</code>:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">create_volume</span><span class="params">(self, volume)</span>:</span></span><br><span class="line">    <span class="keyword">with</span> RADOSClient(self) <span class="keyword">as</span> client:</span><br><span class="line">        self.RBDProxy().create(client.ioctx,</span><br><span class="line">                               vol_name,</span><br><span class="line">                               size,</span><br><span class="line">                               order,</span><br><span class="line">                               old_format=<span class="literal">False</span>,</span><br><span class="line">                               features=client.features)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            volume_update = self._enable_replication_if_needed(volume)</span><br><span class="line">        <span class="keyword">except</span> Exception:</span><br><span class="line">            self.RBDProxy().remove(client.ioctx, vol_name)</span><br><span class="line">            err_msg = (_(<span class="string">'Failed to enable image replication'</span>))</span><br><span class="line">            <span class="keyword">raise</span> exception.ReplicationError(reason=err_msg,</span><br><span class="line">                                             volume_id=volume.id)</span><br></pre></td></tr></table></figure>
+<p>其中<code>size</code>单位为MB，<code>vol_name</code>为<code>volume-${volume_uuid}</code>。</p>
+<p>假设volume的uuid为<code>bf2d1c54-6c98-4a78-9c20-3e8ea033c3db</code>，Ceph池为<code>openstack</code>，创建的volume大小为1GB，则对应的rbd命令相当于:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack create \</span><br><span class="line">--new-format --size 1024 \</span><br><span class="line">volume-bf2d1c54-6c98-4a78-9c20-3e8ea033c3db</span><br></pre></td></tr></table></figure>
+<p>我们可以通过rbd命令验证:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">int32bit $ rbd -p openstack ls | grep bf2d1c54-6c98-4a78-9c20-3e8ea033c3db</span><br><span class="line">volume-bf2d1c54-6c98-4a78-9c20-3e8ea033c3db</span><br></pre></td></tr></table></figure>
+<h2 id="create-from-snapshot"><a href="#create-from-snapshot" class="headerlink" title="create from snapshot"></a>create from snapshot</h2><p>从快照中创建volume也是直接调用driver的方法，如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_create_from_snapshot</span><span class="params">(self, context, volume, snapshot_id,</span></span></span><br><span class="line"><span class="function"><span class="params">                          **kwargs)</span>:</span></span><br><span class="line">    snapshot = objects.Snapshot.get_by_id(context, snapshot_id)</span><br><span class="line">    model_update = self.driver.create_volume_from_snapshot(volume,</span><br><span class="line">                                                           snapshot)</span><br></pre></td></tr></table></figure>
+<p>我们查看<code>RBDDriver</code>的<code>create_volume_from_snapshot()</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">create_volume_from_snapshot</span><span class="params">(self, volume, snapshot)</span>:</span></span><br><span class="line">    <span class="string">"""Creates a volume from a snapshot."""</span></span><br><span class="line">    volume_update = self._clone(volume, self.configuration.rbd_pool,</span><br><span class="line">                                snapshot.volume_name, snapshot.name)</span><br><span class="line">    <span class="keyword">if</span> self.configuration.rbd_flatten_volume_from_snapshot:</span><br><span class="line">        self._flatten(self.configuration.rbd_pool, volume.name)</span><br><span class="line">    <span class="keyword">if</span> int(volume.size):</span><br><span class="line">        self._resize(volume)</span><br><span class="line">    <span class="keyword">return</span> volume_update</span><br></pre></td></tr></table></figure>
+<p>从代码中看出，从snapshot中创建快照分为3个步骤:</p>
+<ul>
+<li>从rbd快照中执行clone操作。</li>
+<li>如果<code>rbd_flatten_volume_from_snapshot</code>配置为<code>True</code>，则执行<code>flatten</code>操作。</li>
+<li>如果创建中指定了<code>size</code>，则执行<code>resize</code>操作。</li>
+</ul>
+<p>假设新创建的volume的uuid为<code>e6bc8618-879b-4655-aac0-05e5a1ce0e06</code>，快照的uuid为<code>snapshot-e4e534fc-420b-45c6-8e9f-b23dcfcb7f86</code>，快照的源volume uuid为<code>bf2d1c54-6c98-4a78-9c20-3e8ea033c3db</code>，指定的size为2，<code>rbd_flatten_volume_from_snapshot</code>为<code>False</code>（默认值)，则对应的rbd命令为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">rbd clone \</span><br><span class="line">openstack/volume-bf2d1c54-6c98-4a78-9c20-3e8ea033c3db@snapshot-e4e534fc-420b-45c6-8e9f-b23dcfcb7f86 \</span><br><span class="line">openstack/volume-e6bc8618-879b-4655-aac0-05e5a1ce0e06</span><br><span class="line">rbd resize --size 2048 \</span><br><span class="line">openstack/volume-e6bc8618-879b-4655-aac0-05e5a1ce0e06</span><br></pre></td></tr></table></figure>
+<p>从源码上分析，Cinder从快照中创建volume时，用户可以配置是否执行flatten操作：</p>
+<ul>
+<li>如果执行flatten操作，则从快照中创建volume可能需要数分钟的时间，创建后可以随时删除快照。</li>
+<li>如果不执行flatten操作，则需要注意在删除所有基于该快照创建的volume之前，不能删除该快照，也不能删除快照的源volume。</li>
+</ul>
+<p>第二点可能会更复杂，比如基于快照创建了一个volume，然后基于该volume又创建了快照，基于该快照创建了volume，则用户不能删除源volume，不能删除快照。</p>
+<h2 id="create-from-volume"><a href="#create-from-volume" class="headerlink" title="create from volume"></a>create from volume</h2><p>从volume中创建volume，需要指定源volume id(<code>source_volid</code>):</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_create_from_source_volume</span><span class="params">(self, context, volume, source_volid,</span></span></span><br><span class="line"><span class="function"><span class="params">                               **kwargs)</span>:</span></span><br><span class="line">    srcvol_ref = objects.Volume.get_by_id(context, source_volid)</span><br><span class="line">    model_update = self.driver.create_cloned_volume(volume, srcvol_ref)</span><br></pre></td></tr></table></figure>
+<p>我们直接查看driver的<code>create_cloned_volume()</code>方法，该方法中有一个很重要的配置项<code>rbd_max_clone_depth</code>，即允许rbd image clone允许的最长深度，如果<code>rbd_max_clone_depth &lt;= 0</code>，则表示不允许clone:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Do full copy if requested</span></span><br><span class="line"><span class="keyword">if</span> self.configuration.rbd_max_clone_depth &lt;= <span class="number">0</span>:</span><br><span class="line">    <span class="keyword">with</span> RBDVolumeProxy(self, src_name, read_only=<span class="literal">True</span>) <span class="keyword">as</span> vol:</span><br><span class="line">        vol.copy(vol.ioctx, dest_name)</span><br><span class="line">        self._extend_if_required(volume, src_vref)</span><br><span class="line">    <span class="keyword">return</span></span><br></pre></td></tr></table></figure>
+<p>此时相当于rbd的copy命令。</p>
+<p>如果<code>rbd_max_clone_depth &gt; 0</code>:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Otherwise do COW clone.</span></span><br><span class="line"><span class="keyword">with</span> RADOSClient(self) <span class="keyword">as</span> client:</span><br><span class="line">    src_volume = self.rbd.Image(client.ioctx, src_name)</span><br><span class="line">    LOG.debug(<span class="string">"creating snapshot='%s'"</span>, clone_snap)</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="comment"># Create new snapshot of source volume</span></span><br><span class="line">        src_volume.create_snap(clone_snap)</span><br><span class="line">        src_volume.protect_snap(clone_snap)</span><br><span class="line">        <span class="comment"># Now clone source volume snapshot</span></span><br><span class="line">        LOG.debug(<span class="string">"cloning '%(src_vol)s@%(src_snap)s' to "</span></span><br><span class="line">                  <span class="string">"'%(dest)s'"</span>,</span><br><span class="line">                  &#123;<span class="string">'src_vol'</span>: src_name, <span class="string">'src_snap'</span>: clone_snap,</span><br><span class="line">                   <span class="string">'dest'</span>: dest_name&#125;)</span><br><span class="line">        self.RBDProxy().clone(client.ioctx, src_name, clone_snap,</span><br><span class="line">                              client.ioctx, dest_name,</span><br><span class="line">                              features=client.features)</span><br></pre></td></tr></table></figure>
+<p>这个过程和创建虚拟机快照非常相似，二者都是先基于源image创建snapshot，然后基于snapshot执行clone操作，区别在于是否执行flatten操作，创建虚拟机快照时一定会执行flatten操作，而该操作则取决于clone深度:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">depth = self._get_clone_depth(client, src_name)</span><br><span class="line"><span class="keyword">if</span> depth &gt;= self.configuration.rbd_max_clone_depth:</span><br><span class="line">        dest_volume = self.rbd.Image(client.ioctx, dest_name)</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            dest_volume.flatten()</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">            ...</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            src_volume.unprotect_snap(clone_snap)</span><br><span class="line">            src_volume.remove_snap(clone_snap)</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">            ...</span><br></pre></td></tr></table></figure>
+<p>如果当前depth超过了允许的最大深度<code>rbd_max_clone_depth</code>则执行flatten操作，并删除创建的快照。</p>
+<p>假设创建的volume uuid为<code>3b8b15a4-3020-41a0-80be-afaa35ed5eef</code>，源volume uuid为<code>bf2d1c54-6c98-4a78-9c20-3e8ea033c3db</code>，则对应的rbd命令为:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">VOLID=3b8b15a4-3020-41a0-80be-afaa35ed5eef</span><br><span class="line">SOURCE_VOLID=bf2d1c54-6c98-4a78-9c20-3e8ea033c3db</span><br><span class="line">CINDER_POOL=openstack</span><br><span class="line"><span class="comment"># Do full copy if rbd_max_clone_depth &lt;= 0.</span></span><br><span class="line"><span class="keyword">if</span> [[ <span class="string">"<span class="variable">$rbd_max_clone_depth</span>"</span> -le 0 ]]; <span class="keyword">then</span></span><br><span class="line">    rbd copy <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLID&#125;</span> openstack/volume-<span class="variable">$&#123;VOLID&#125;</span></span><br><span class="line">    <span class="built_in">exit</span> 0</span><br><span class="line"><span class="keyword">fi</span></span><br><span class="line"><span class="comment"># Otherwise do COW clone.</span></span><br><span class="line"><span class="comment"># Create new snapshot of source volume</span></span><br><span class="line">rbd snap create \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLID&#125;</span>@volume-<span class="variable">$&#123;VOLID&#125;</span>.clone_snap</span><br><span class="line">rbd snap protect \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLID&#125;</span>@volume-<span class="variable">$&#123;VOLID&#125;</span>.clone_snap</span><br><span class="line"><span class="comment"># Now clone source volume snapshot</span></span><br><span class="line">rbd <span class="built_in">clone</span> \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLID&#125;</span>@volume-<span class="variable">$&#123;VOLID&#125;</span>.clone_snap \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLID&#125;</span></span><br><span class="line"><span class="comment"># If dest volume is a clone and rbd_max_clone_depth reached,</span></span><br><span class="line"><span class="comment"># flatten the dest after cloning.</span></span><br><span class="line">depth=$(get_clone_depth <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLID&#125;</span>)</span><br><span class="line"><span class="keyword">if</span> [[ <span class="string">"<span class="variable">$depth</span>"</span> -ge <span class="string">"<span class="variable">$rbd_max_clone_depth</span>"</span> ]]; <span class="keyword">then</span></span><br><span class="line">    <span class="comment"># Flatten destination volume </span></span><br><span class="line">    rbd flatten <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLID&#125;</span></span><br><span class="line">    <span class="comment"># remove temporary snap</span></span><br><span class="line">    rbd snap unprotect \</span><br><span class="line">    <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLID&#125;</span>@volume-<span class="variable">$&#123;VOLID&#125;</span>.clone_snap</span><br><span class="line">    rbd snap rm \</span><br><span class="line">    <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLID&#125;</span>@volume-<span class="variable">$&#123;VOLID&#125;</span>.clone_snap</span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+<p>当<code>rbd_max_clone_depth &gt; 0</code>且<code>depth &lt; rbd_max_clone_depth</code>时，通过rbd命令验证:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">int32bit $ rbd info volume-3b8b15a4-3020-41a0-80be-afaa35ed5eef</span><br><span class="line">rbd image &apos;volume-3b8b15a4-3020-41a0-80be-afaa35ed5eef&apos;:</span><br><span class="line">        size 1024 MB in 256 objects</span><br><span class="line">        order 22 (4096 kB objects)</span><br><span class="line">        block_name_prefix: rbd_data.ae2e437c177a</span><br><span class="line">        format: 2</span><br><span class="line">        features: layering, exclusive-lock, object-map, fast-diff, deep-flatten</span><br><span class="line">        flags:</span><br><span class="line">        create_timestamp: Wed Nov 22 12:32:09 2017</span><br><span class="line">        parent: openstack/volume-bf2d1c54-6c98-4a78-9c20-3e8ea033c3db@volume-3b8b15a4-3020-41a0-80be-afaa35ed5eef.clone_snap</span><br><span class="line">        overlap: 1024 MB</span><br></pre></td></tr></table></figure>
+<p>可见<code>volume-3b8b15a4-3020-41a0-80be-afaa35ed5eef</code>的parent为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">volume-bf2d1c54-6c98-4a78-9c20-3e8ea033c3db@volume-3b8b15a4-3020-41a0-80be-afaa35ed5eef.clone_snap.</span><br></pre></td></tr></table></figure>
+<h2 id="create-from-image"><a href="#create-from-image" class="headerlink" title="create from image"></a>create from image</h2><p>从镜像中创建volume，这里假定Glance和Cinder都使用的同一个Ceph集群，则Cinder可以直接从Glance中clone，不需要下载镜像:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_create_from_image</span><span class="params">(self, context, volume,</span></span></span><br><span class="line"><span class="function"><span class="params">                       image_location, image_id, image_meta,</span></span></span><br><span class="line"><span class="function"><span class="params">                       image_service, **kwargs)</span>:</span></span><br><span class="line">    ...</span><br><span class="line">    model_update, cloned = self.driver.clone_image(</span><br><span class="line">        context,</span><br><span class="line">        volume,</span><br><span class="line">        image_location,</span><br><span class="line">        image_meta,</span><br><span class="line">        image_service)</span><br><span class="line">   ...</span><br></pre></td></tr></table></figure>
+<p>我们查看driver的<code>clone_image()</code>方法：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">clone_image</span><span class="params">(self, context, volume,</span></span></span><br><span class="line"><span class="function"><span class="params">                image_location, image_meta,</span></span></span><br><span class="line"><span class="function"><span class="params">                image_service)</span>:</span></span><br><span class="line">    <span class="comment"># iterate all locations to look for a cloneable one.</span></span><br><span class="line">    <span class="keyword">for</span> url_location <span class="keyword">in</span> url_locations:</span><br><span class="line">        <span class="keyword">if</span> url_location <span class="keyword">and</span> self._is_cloneable(</span><br><span class="line">                url_location, image_meta):</span><br><span class="line">            _prefix, pool, image, snapshot = \</span><br><span class="line">                self._parse_location(url_location)</span><br><span class="line">            volume_update = self._clone(volume, pool, image, snapshot)</span><br><span class="line">            volume_update[<span class="string">'provider_location'</span>] = <span class="literal">None</span></span><br><span class="line">            self._resize(volume)</span><br><span class="line">            <span class="keyword">return</span> volume_update, <span class="literal">True</span></span><br><span class="line">    <span class="keyword">return</span> (&#123;&#125;, <span class="literal">False</span>)</span><br></pre></td></tr></table></figure>
+<p>rbd直接clone，这个过程和创建虚拟机基本一致。如果创建volume时指定了新的大小，则调用rbd resize执行扩容操作。</p>
+<p>假设新创建的volume uuid为<code>87ee1ec6-3fe4-413b-a4c0-8ec7756bf1b4</code>，glance image uuid为<code>db2b6552-394a-42d2-9de8-2295fe2b3180</code>，则rbd命令为:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">rbd <span class="built_in">clone</span> \</span><br><span class="line">openstack/db2b6552-394a-42d2-9de8-2295fe2b3180@snap \</span><br><span class="line">openstack/volume-87ee1ec6-3fe4-413b-a4c0-8ec7756bf1b4</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [[ -n <span class="string">"<span class="variable">$size</span>"</span> ]]; <span class="keyword">then</span></span><br><span class="line">    rbd resize --size <span class="variable">$size</span> \</span><br><span class="line">    openstack/volume-87ee1ec6-3fe4-413b-a4c0-8ec7756bf1b4</span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+<p>通过rbd命令验证如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">int32bit $ rbd info openstack/volume-87ee1ec6-3fe4-413b-a4c0-8ec7756bf1b4</span><br><span class="line">rbd image &apos;volume-87ee1ec6-3fe4-413b-a4c0-8ec7756bf1b4&apos;:</span><br><span class="line">        size 3072 MB in 768 objects</span><br><span class="line">        order 22 (4096 kB objects)</span><br><span class="line">        block_name_prefix: rbd_data.affc488ac1a</span><br><span class="line">        format: 2</span><br><span class="line">        features: layering, exclusive-lock, object-map, fast-diff, deep-flatten</span><br><span class="line">        flags:</span><br><span class="line">        create_timestamp: Wed Nov 22 13:07:50 2017</span><br><span class="line">        parent: openstack/db2b6552-394a-42d2-9de8-2295fe2b3180@snap</span><br><span class="line">        overlap: 2048 MB</span><br></pre></td></tr></table></figure>
+<p>可见新创建的rbd image的parent为<code>openstack/db2b6552-394a-42d2-9de8-2295fe2b3180@snap</code>。</p>
+<p><strong>注：其实我个人认为该方法需要执行<code>flatten</code>操作，否则当有volume存在时，Glance不能删除镜像，相当于Glance服务依赖于Cinder服务状态，这有点不合理。</strong></p>
+<h2 id="4-3-创建快照"><a href="#4-3-创建快照" class="headerlink" title="4.3 创建快照"></a>4.3 创建快照</h2><p>创建快照入口为<code>cinder/volume/manager.py</code>的<code>create_snapshot()</code>方法，该方法没有使用taskflow框架，而是直接调用的driver <code>create_snapshot()</code>方法，如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    utils.require_driver_initialized(self.driver)</span><br><span class="line">    snapshot.context = context</span><br><span class="line">    model_update = self.driver.create_snapshot(snapshot)</span><br><span class="line">    ...</span><br><span class="line"><span class="keyword">except</span> Exception:</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<p><code>RBDDriver</code>的<code>create_snapshot()</code>方法非常简单:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">create_snapshot</span><span class="params">(self, snapshot)</span>:</span></span><br><span class="line">    <span class="string">"""Creates an rbd snapshot."""</span></span><br><span class="line">    <span class="keyword">with</span> RBDVolumeProxy(self, snapshot.volume_name) <span class="keyword">as</span> volume:</span><br><span class="line">        snap = utils.convert_str(snapshot.name)</span><br><span class="line">        volume.create_snap(snap)</span><br><span class="line">        volume.protect_snap(snap)</span><br></pre></td></tr></table></figure>
+<p>因此volume的快照其实就是对应Ceph rbd image快照，假设snapshot uuid为<code>e4e534fc-420b-45c6-8e9f-b23dcfcb7f86</code>，volume uuid为<code>bf2d1c54-6c98-4a78-9c20-3e8ea033c3db</code>，则对应的rbd命令大致如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">rbd -p openstack snap create \</span><br><span class="line">volume-bf2d1c54-6c98-4a78-9c20-3e8ea033c3db@snapshot-e4e534fc-420b-45c6-8e9f-b23dcfcb7f86</span><br><span class="line">rbd -p openstack snap protect \</span><br><span class="line">volume-bf2d1c54-6c98-4a78-9c20-3e8ea033c3db@snapshot-e4e534fc-420b-45c6-8e9f-b23dcfcb7f86</span><br></pre></td></tr></table></figure>
+<p>从这里我们可以看出虚拟机快照和volume快照的区别，虚拟机快照需要从根磁盘rbd image快照中clone然后flatten，而volume的快照只需要创建rbd image快照，因此虚拟机快照通常需要数分钟的时间，而volume快照能够秒级完成。</p>
+<h2 id="4-4-创建volume备份"><a href="#4-4-创建volume备份" class="headerlink" title="4.4 创建volume备份"></a>4.4 创建volume备份</h2><p>在了解volume备份之前，首先需要理清快照和备份的区别。我们可以通过<code>git</code>类比，快照类似<code>git commit</code>操作，只是表明数据提交了，主要用于回溯与回滚。当集群奔溃导致数据丢失，通常不能从快照中完全恢复数据。而备份则类似于<code>git push</code>，把数据安全推送到了远端存储系统中，主要用于保证数据安全，即使本地数据丢失，也能从备份中恢复。Cinder的磁盘备份也支持多种存储后端，这里我们只考虑volume和backup driver都是Ceph的情况，其它细节可以参考<span class="exturl" data-url="aHR0cHM6Ly9saW5rLnpoaWh1LmNvbS8/dGFyZ2V0PWh0dHAlM0EvL2ludDMyYml0Lm1lLzIwMTcvMDMvMzAvQ2luZGVyJUU2JTk1JUIwJUU2JThEJUFFJUU1JThEJUI3JUU1JUE0JTg3JUU0JUJCJUJEJUU1JThFJTlGJUU3JTkwJTg2JUU1JTkyJThDJUU1JUFFJTlFJUU4JUI3JUI1Lw==" title="https://link.zhihu.com/?target=http%3A//int32bit.me/2017/03/30/Cinder%E6%95%B0%E6%8D%AE%E5%8D%B7%E5%A4%87%E4%BB%BD%E5%8E%9F%E7%90%86%E5%92%8C%E5%AE%9E%E8%B7%B5/">Cinder数据卷备份原理与实践<i class="fa fa-external-link"></i></span>。生产中volume和backup必须使用不同的Ceph集群，这样才能保证当volume ceph集群挂了，也能从另一个集群中快速恢复数据。本文只是为了测试功能，因此使用的是同一个Ceph集群，通过pool区分，volume使用<code>openstack</code>pool，而backup使用<code>cinder_backup</code>pool。</p>
+<p>另外，Cinder支持增量备份，用户可以指定<code>--incremental</code>参数决定使用的是全量备份还是增量备份。但是对于Ceph后端来说，Cinder总是先尝试执行增量备份，只有当增量备份失败时，才会fallback到全量备份，而不管用户有没有指定<code>--incremental</code>参数。尽管如此，我们仍然把备份分为全量备份和增量备份两种情况，注意只有第一次备份才有可能是全量备份，剩下的备份都是增量备份。</p>
+<h2 id="全量备份-第一次备份"><a href="#全量备份-第一次备份" class="headerlink" title="全量备份(第一次备份)"></a>全量备份(第一次备份)</h2><p>我们直接查看<code>CephBackupDriver</code>的<code>backup()</code>方法，代码位于<code>cinder/backup/drivers/ceph.py</code>。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> self._file_is_rbd(volume_file):</span><br><span class="line">    <span class="comment"># If volume an RBD, attempt incremental backup.</span></span><br><span class="line">    LOG.debug(<span class="string">"Volume file is RBD: attempting incremental backup."</span>)</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        updates = self._backup_rbd(backup, volume_file,</span><br><span class="line">                                   volume.name, length)</span><br><span class="line">    <span class="keyword">except</span> exception.BackupRBDOperationFailed:</span><br><span class="line">        LOG.debug(<span class="string">"Forcing full backup of volume %s."</span>, volume.id)</span><br><span class="line">        do_full_backup = <span class="literal">True</span></span><br></pre></td></tr></table></figure>
+<p>这里主要判断源volume是否是rbd，即是否使用Ceph后端，只有当volume也使用Ceph存储后端情况下才能执行增量备份。</p>
+<p>我们查看<code>_backup_rbd()</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">from_snap = self._get_most_recent_snap(source_rbd_image)</span><br><span class="line">base_name = self._get_backup_base_name(volume_id, diff_format=<span class="literal">True</span>)</span><br><span class="line">image_created = <span class="literal">False</span></span><br><span class="line"><span class="keyword">with</span> rbd_driver.RADOSClient(self, backup.container) <span class="keyword">as</span> client:</span><br><span class="line">    <span class="keyword">if</span> base_name <span class="keyword">not</span> <span class="keyword">in</span> self.rbd.RBD().list(ioctx=client.ioctx):</span><br><span class="line">        ...</span><br><span class="line">        <span class="comment"># Create new base image</span></span><br><span class="line">        self._create_base_image(base_name, length, client)</span><br><span class="line">        image_created = <span class="literal">True</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        ...</span><br></pre></td></tr></table></figure>
+<p><code>from_snap</code>为上一次备份时的快照点，由于我们这是第一次备份，因此<code>from_snap</code>为<code>None</code>，<code>base_name</code>格式为<code>volume-%s.backup.base</code>，这个base是做什么的呢？我们查看下<code>_create_base_image()</code>方法就知道了:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_create_base_image</span><span class="params">(self, name, size, rados_client)</span>:</span></span><br><span class="line">    old_format, features = self._get_rbd_support()</span><br><span class="line">    self.rbd.RBD().create(ioctx=rados_client.ioctx,</span><br><span class="line">                          name=name,</span><br><span class="line">                          size=size,</span><br><span class="line">                          old_format=old_format,</span><br><span class="line">                          features=features,</span><br><span class="line">                          stripe_unit=self.rbd_stripe_unit,</span><br><span class="line">                          stripe_count=self.rbd_stripe_count)</span><br></pre></td></tr></table></figure>
+<p>可见base其实就是一个空卷，大小和之前的volume大小一致。</p>
+<p>也就是说如果是第一次备份，在backup的Ceph集群首先会创建一个大小和volume一样的空卷。</p>
+<p>我们继续看源码:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_backup_rbd</span><span class="params">(self, backup, volume_file, volume_name, length)</span>:</span></span><br><span class="line">    ...</span><br><span class="line">    new_snap = self._get_new_snap_name(backup.id)</span><br><span class="line">    LOG.debug(<span class="string">"Creating backup snapshot='%s'"</span>, new_snap)</span><br><span class="line">    source_rbd_image.create_snap(new_snap)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        self._rbd_diff_transfer(volume_name, rbd_pool, base_name,</span><br><span class="line">                                backup.container,</span><br><span class="line">                                src_user=rbd_user,</span><br><span class="line">                                src_conf=rbd_conf,</span><br><span class="line">                                dest_user=self._ceph_backup_user,</span><br><span class="line">                                dest_conf=self._ceph_backup_conf,</span><br><span class="line">                                src_snap=new_snap,</span><br><span class="line">                                from_snap=from_snap)</span><br><span class="line">                            </span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_get_new_snap_name</span><span class="params">(self, backup_id)</span>:</span></span><br><span class="line">    <span class="keyword">return</span> utils.convert_str(<span class="string">"backup.%s.snap.%s"</span></span><br><span class="line">                             % (backup_id, time.time()))</span><br></pre></td></tr></table></figure>
+<p>首先在源volume中创建了一个新快照，快照名为<code>backup.${backup_id}.snap.${timestamp}</code>，然后调用了<code>rbd_diff_transfer()</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_rbd_diff_transfer</span><span class="params">(self, src_name, src_pool, dest_name, dest_pool,</span></span></span><br><span class="line"><span class="function"><span class="params">                       src_user, src_conf, dest_user, dest_conf,</span></span></span><br><span class="line"><span class="function"><span class="params">                       src_snap=None, from_snap=None)</span>:</span></span><br><span class="line">    src_ceph_args = self._ceph_args(src_user, src_conf, pool=src_pool)</span><br><span class="line">    dest_ceph_args = self._ceph_args(dest_user, dest_conf, pool=dest_pool)</span><br><span class="line"></span><br><span class="line">    cmd1 = [<span class="string">'rbd'</span>, <span class="string">'export-diff'</span>] + src_ceph_args</span><br><span class="line">    <span class="keyword">if</span> from_snap <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        cmd1.extend([<span class="string">'--from-snap'</span>, from_snap])</span><br><span class="line">    <span class="keyword">if</span> src_snap:</span><br><span class="line">        path = utils.convert_str(<span class="string">"%s/%s@%s"</span></span><br><span class="line">                                 % (src_pool, src_name, src_snap))</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        path = utils.convert_str(<span class="string">"%s/%s"</span> % (src_pool, src_name))</span><br><span class="line">    cmd1.extend([path, <span class="string">'-'</span>])</span><br><span class="line"></span><br><span class="line">    cmd2 = [<span class="string">'rbd'</span>, <span class="string">'import-diff'</span>] + dest_ceph_args</span><br><span class="line">    rbd_path = utils.convert_str(<span class="string">"%s/%s"</span> % (dest_pool, dest_name))</span><br><span class="line">    cmd2.extend([<span class="string">'-'</span>, rbd_path])</span><br><span class="line"></span><br><span class="line">    ret, stderr = self._piped_execute(cmd1, cmd2)</span><br><span class="line">    <span class="keyword">if</span> ret:</span><br><span class="line">        msg = (_(<span class="string">"RBD diff op failed - (ret=%(ret)s stderr=%(stderr)s)"</span>) %</span><br><span class="line">               &#123;<span class="string">'ret'</span>: ret, <span class="string">'stderr'</span>: stderr&#125;)</span><br><span class="line">        LOG.info(msg)</span><br><span class="line">        <span class="keyword">raise</span> exception.BackupRBDOperationFailed(msg)</span><br></pre></td></tr></table></figure>
+<p>方法调用了rbd命令，先通过<code>export-diff</code>子命令导出源rbd image的差量文件，然后通过<code>import-diff</code>导入到backup的image中。</p>
+<p>假设源volume的uuid为<code>075c06ed-37e2-407d-b998-e270c4edc53c</code>，大小为1GB，backup uuid为<code>db563496-0c15-4349-95f3-fc5194bfb11a</code>，这对应的rbd命令大致如下:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">VOLUME_ID=075c06ed-37e2-407d-b998-e270c4edc53c</span><br><span class="line">BACKUP_ID=db563496-0c15-4349-95f3-fc5194bfb11a</span><br><span class="line">rbd -p cinder_backup create \</span><br><span class="line">--size 1024 \</span><br><span class="line">volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.backup.base</span><br><span class="line">new_snap=volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>@backup.<span class="variable">$&#123;BACKUP_ID&#125;</span>.snap.1511344566.67</span><br><span class="line">rbd -p openstack snap create <span class="variable">$&#123;new_snap&#125;</span></span><br><span class="line">rbd <span class="built_in">export</span>-diff --pool openstack <span class="variable">$&#123;new_snap&#125;</span> - \</span><br><span class="line">| rbd import-diff --pool cinder_backup - volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.backup.base</span><br></pre></td></tr></table></figure>
+<p>我们可以通过rbd命令验证如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># volume ceph cluster</span><br><span class="line">int32bit $ rbd -p openstack snap ls volume-075c06ed-37e2-407d-b998-e270c4edc53c</span><br><span class="line">SNAPID NAME                                                              SIZE TIMESTAMP</span><br><span class="line">    52 backup.db563496-0c15-4349-95f3-fc5194bfb11a.snap.1511344566.67 1024 MB Wed Nov 22 17:56:15 2017</span><br><span class="line"># backup ceph cluster</span><br><span class="line">int32bit $ rbd -p cinder_backup ls -l</span><br><span class="line">NAME                                                                                                                   SIZE PARENT FMT PROT LOCK</span><br><span class="line">volume-075c06ed-37e2-407d-b998-e270c4edc53c.backup.base                                                                1024M 2</span><br><span class="line">volume-075c06ed-37e2-407d-b998-e270c4edc53c.backup.base@backup.db563496-0c15-4349-95f3-fc5194bfb11a.snap.1511344566.67 1024M  2</span><br></pre></td></tr></table></figure>
+<p>从输出上看，源volume创建了一个快照，ID为<code>52</code>，在backup的Ceph集群中创建了一个空卷<code>volume-075c06ed-37e2-407d-b998-e270c4edc53c.backup.base</code>，并且包含一个快照<code>backup.xxx.snap.1511344566.67</code>，该快照是通过<code>import-diff</code>创建的。</p>
+<h2 id="增量备份"><a href="#增量备份" class="headerlink" title="增量备份"></a>增量备份</h2><p>前面的过程和全量备份一样，我们直接跳到<code>_backup_rbd()</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">from_snap = self._get_most_recent_snap(source_rbd_image)</span><br><span class="line"><span class="keyword">with</span> rbd_driver.RADOSClient(self, backup.container) <span class="keyword">as</span> client:</span><br><span class="line">    <span class="keyword">if</span> base_name <span class="keyword">not</span> <span class="keyword">in</span> self.rbd.RBD().list(ioctx=client.ioctx):</span><br><span class="line">        ...</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> self._snap_exists(base_name, from_snap, client):</span><br><span class="line">            errmsg = (_(<span class="string">"Snapshot='%(snap)s' does not exist in base "</span></span><br><span class="line">                        <span class="string">"image='%(base)s' - aborting incremental "</span></span><br><span class="line">                        <span class="string">"backup"</span>) %</span><br><span class="line">                      &#123;<span class="string">'snap'</span>: from_snap, <span class="string">'base'</span>: base_name&#125;)</span><br><span class="line">            LOG.info(errmsg)</span><br><span class="line">            <span class="keyword">raise</span> exception.BackupRBDOperationFailed(errmsg)</span><br></pre></td></tr></table></figure>
+<p>首先获取源volume对应rbd image的最新快照最为parent，然后判断在backup的Ceph集群的base中是否存在相同的快照（根据前面的全量备份，一定存在和源volume一样的快照。</p>
+<p>我们继续看后面的部分:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">new_snap = self._get_new_snap_name(backup.id)</span><br><span class="line">source_rbd_image.create_snap(new_snap)</span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    before = time.time()</span><br><span class="line">    self._rbd_diff_transfer(volume_name, rbd_pool, base_name,</span><br><span class="line">                            backup.container,</span><br><span class="line">                            src_user=rbd_user,</span><br><span class="line">                            src_conf=rbd_conf,</span><br><span class="line">                            dest_user=self._ceph_backup_user,</span><br><span class="line">                            dest_conf=self._ceph_backup_conf,</span><br><span class="line">                            src_snap=new_snap,</span><br><span class="line">                            from_snap=from_snap)</span><br><span class="line">    <span class="keyword">if</span> from_snap:</span><br><span class="line">        source_rbd_image.remove_snap(from_snap)</span><br></pre></td></tr></table></figure>
+<p>这个和全量备份基本是一样的，唯一区别在于此时<code>from_snap</code>不是<code>None</code>，并且后面会删掉<code>from_snap</code>。<code>_rbd_diff_transfer</code>方法可以翻前面代码。</p>
+<p>假设源volume uuid为<code>075c06ed-37e2-407d-b998-e270c4edc53c</code>，backup uuid为<code>e3db9e85-d352-47e2-bced-5bad68da853b</code>，parent backup uuid为<code>db563496-0c15-4349-95f3-fc5194bfb11a</code>，则对应的rbd命令大致如下:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">VOLUME_ID=075c06ed-37e2-407d-b998-e270c4edc53c</span><br><span class="line">BACKUP_ID=e3db9e85-d352-47e2-bced-5bad68da853b</span><br><span class="line">PARENT_ID=db563496-0c15-4349-95f3-fc5194bfb11a</span><br><span class="line">rbd -p openstack snap create \</span><br><span class="line">volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>@backup.<span class="variable">$&#123;BACKUP_ID&#125;</span>.snap.1511348180.27 </span><br><span class="line">rbd <span class="built_in">export</span>-diff  --pool openstack \</span><br><span class="line">--from-snap backup.<span class="variable">$&#123;PARENT_ID&#125;</span>.snap.1511344566.67 \</span><br><span class="line">openstack/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>@backup.<span class="variable">$&#123;BACKUP_ID&#125;</span>.snap.1511348180.27 - \</span><br><span class="line">| rbd import-diff --pool cinder_backup - \</span><br><span class="line">cinder_backup/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.backup.base</span><br><span class="line">rbd -p openstack snap rm \</span><br><span class="line">volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.backup.base@backup.<span class="variable">$&#123;PARENT_ID&#125;</span>.snap.1511344566.67</span><br></pre></td></tr></table></figure>
+<p>我们通过rbd命令验证如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">int32bit $ rbd -p openstack snap ls volume-075c06ed-37e2-407d-b998-e270c4edc53c</span><br><span class="line">SNAPID NAME                                                              SIZE TIMESTAMP</span><br><span class="line">    53 backup.e3db9e85-d352-47e2-bced-5bad68da853b.snap.1511348180.27 1024 MB Wed Nov 22 18:56:20 2017</span><br><span class="line">int32bit $ rbd -p cinder_backup ls -l</span><br><span class="line">NAME                                                                                                                    SIZE PARENT FMT PROT LOCK</span><br><span class="line">volume-075c06ed-37e2-407d-b998-e270c4edc53c.backup.base                                                                1024M          2</span><br><span class="line">volume-075c06ed-37e2-407d-b998-e270c4edc53c.backup.base@backup.db563496-0c15-4349-95f3-fc5194bfb11a.snap.1511344566.67 1024M          2</span><br><span class="line">volume-075c06ed-37e2-407d-b998-e270c4edc53c.backup.base@backup.e3db9e85-d352-47e2-bced-5bad68da853b.snap.1511348180.27 1024M          2</span><br></pre></td></tr></table></figure>
+<p>和我们分析的结果一致，源volume的快照会删除旧的而只保留最新的一个，backup则会保留所有的快照。</p>
+<h2 id="4-5-备份恢复"><a href="#4-5-备份恢复" class="headerlink" title="4.5 备份恢复"></a>4.5 备份恢复</h2><p>备份恢复是备份的逆过程，即从远端存储还原数据到本地。备份恢复的源码位于<code>cinder/backup/drivers/ceph.py</code>的<code>restore()</code>方法，该方法直接调用了<code>_restore_volume()</code>方法，因此我们直接看<code>_restore_volume()</code>方法:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_restore_volume</span><span class="params">(self, backup, volume, volume_file)</span>:</span></span><br><span class="line">    length = int(volume.size) * units.Gi</span><br><span class="line"></span><br><span class="line">    base_name = self._get_backup_base_name(backup.volume_id,</span><br><span class="line">                                           diff_format=<span class="literal">True</span>)</span><br><span class="line">    <span class="keyword">with</span> rbd_driver.RADOSClient(self, backup.container) <span class="keyword">as</span> client:</span><br><span class="line">        diff_allowed, restore_point = \</span><br><span class="line">            self._diff_restore_allowed(base_name, backup, volume,</span><br><span class="line">                                       volume_file, client)</span><br></pre></td></tr></table></figure>
+<p>其中<code>_diff_restore_allowed()</code>是一个非常重要的方法，该方法判断是否支持通过直接导入方式恢复，我们查看该方法实现:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_diff_restore_allowed</span><span class="params">(self, base_name, backup, volume, volume_file,</span></span></span><br><span class="line"><span class="function"><span class="params">                          rados_client)</span>:</span></span><br><span class="line">    rbd_exists, base_name = self._rbd_image_exists(base_name,</span><br><span class="line">                                                   backup.volume_id,</span><br><span class="line">                                                   rados_client)</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> rbd_exists:</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">False</span>, <span class="literal">None</span></span><br><span class="line">    restore_point = self._get_restore_point(base_name, backup.id)</span><br><span class="line">    <span class="keyword">if</span> restore_point:</span><br><span class="line">        <span class="keyword">if</span> self._file_is_rbd(volume_file):</span><br><span class="line">            <span class="keyword">if</span> volume.id == backup.volume_id:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span>, restore_point</span><br><span class="line">            <span class="keyword">if</span> self._rbd_has_extents(volume_file.rbd_image):</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span>, restore_point</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">True</span>, restore_point</span><br></pre></td></tr></table></figure>
+<p>从该方法中我们可以看出支持差量导入方式恢复数据，需要满足以下所有条件:</p>
+<ul>
+<li>backup集群对应volume的rbd base image必须存在。</li>
+<li>恢复点必须存在，即backup base image对应的快照必须存在。</li>
+<li>恢复目标的volume必须是RBD，即volume的存储后端也必须是Ceph。</li>
+<li>恢复目标的volume必须是空卷，既不支持覆盖已经有内容的image。</li>
+<li>恢复目标的volume uuid和backup的源volume uuid不能是一样的，即不能覆盖原来的volume。</li>
+</ul>
+<p>换句话说，虽然Cinder支持将数据还复到已有的volume（包括源volume）中，但如果使用Ceph后端就不支持增量恢复，导致效率会非常低。</p>
+<p><strong>因此如果使用Ceph存储后端，官方文档中建议将备份恢复到空卷中（不指定volume)，不建议恢复到已有的volume中</strong>。</p>
+<blockquote>
+<p><em>Note that Cinder supports restoring to a new volume or the original volume the backup was taken from. For the latter case, a full copy is enforced since this was deemed the safest action to take. It is therefore recommended to always restore to a new volume (default).</em></p>
+</blockquote>
+<p>这里假定我们恢复到空卷中，命令如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cinder backup-restore \</span><br><span class="line">--name int32bit-restore-1 \</span><br><span class="line">e3db9e85-d352-47e2-bced-5bad68da853b</span><br></pre></td></tr></table></figure>
+<p>注意我们没有指定<code>--volume</code>参数。此时执行增量恢复，代码实现如下:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_diff_restore_rbd</span><span class="params">(self, backup, restore_file, restore_name,</span></span></span><br><span class="line"><span class="function"><span class="params">                      restore_point, restore_length)</span>:</span></span><br><span class="line">    rbd_user = restore_file.rbd_user</span><br><span class="line">    rbd_pool = restore_file.rbd_pool</span><br><span class="line">    rbd_conf = restore_file.rbd_conf</span><br><span class="line">    base_name = self._get_backup_base_name(backup.volume_id,</span><br><span class="line">                                           diff_format=<span class="literal">True</span>)</span><br><span class="line">    before = time.time()</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        self._rbd_diff_transfer(base_name, backup.container,</span><br><span class="line">                                restore_name, rbd_pool,</span><br><span class="line">                                src_user=self._ceph_backup_user,</span><br><span class="line">                                src_conf=self._ceph_backup_conf,</span><br><span class="line">                                dest_user=rbd_user, dest_conf=rbd_conf,</span><br><span class="line">                                src_snap=restore_point)</span><br><span class="line">    <span class="keyword">except</span> exception.BackupRBDOperationFailed:</span><br><span class="line">        <span class="keyword">raise</span></span><br><span class="line">    self._check_restore_vol_size(backup, restore_name, restore_length,</span><br><span class="line">                                 rbd_pool)</span><br></pre></td></tr></table></figure>
+<p>可见增量恢复非常简单，仅仅调用前面介绍的<code>_rbd_diff_transfer()</code>方法把backup Ceph集群对应的base image的快照<code>export-diff</code>到volume的Ceph集群中，并调整大小。</p>
+<p>假设backup uuid为<code>e3db9e85-d352-47e2-bced-5bad68da853b</code>，源volume uuid为<code>075c06ed-37e2-407d-b998-e270c4edc53c</code>，目标volume uuid为<code>f65cf534-5266-44bb-ad57-ddba21d9e5f9</code>，则对应的rbd命令为:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">BACKUP_ID=e3db9e85-d352-47e2-bced-5bad68da853b</span><br><span class="line">SOURCE_VOLUME_ID=075c06ed-37e2-407d-b998-e270c4edc53c</span><br><span class="line">DEST_VOLUME_ID=f65cf534-5266-44bb-ad57-ddba21d9e5f9</span><br><span class="line">rbd <span class="built_in">export</span>-diff --pool cinder_backup \</span><br><span class="line">cinder_backup/volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span>.backup.base@backup.<span class="variable">$&#123;BACKUP_ID&#125;</span>.snap.1511348180.27 - \</span><br><span class="line">| rbd import-diff --pool openstack - \</span><br><span class="line">openstack/volume-<span class="variable">$&#123;DEST_VOLUME_ID&#125;</span></span><br><span class="line">rbd -p openstack resize \</span><br><span class="line">--size <span class="variable">$&#123;new_size&#125;</span> volume-<span class="variable">$&#123;DEST_VOLUME_ID&#125;</span></span><br></pre></td></tr></table></figure>
+<p>如果不满足以上5个条件之一，则Cinder会执行全量备份，全量备份就是一块一块数据写入:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_transfer_data</span><span class="params">(self, src, src_name, dest, dest_name, length)</span>:</span></span><br><span class="line">    chunks = int(length / self.chunk_size)</span><br><span class="line">    <span class="keyword">for</span> chunk <span class="keyword">in</span> range(<span class="number">0</span>, chunks):</span><br><span class="line">        before = time.time()</span><br><span class="line">        data = src.read(self.chunk_size)</span><br><span class="line">        dest.write(data)</span><br><span class="line">        dest.flush()</span><br><span class="line">        delta = (time.time() - before)</span><br><span class="line">        rate = (self.chunk_size / delta) / <span class="number">1024</span></span><br><span class="line">        <span class="comment"># yield to any other pending backups</span></span><br><span class="line">        eventlet.sleep(<span class="number">0</span>)</span><br><span class="line">    rem = int(length % self.chunk_size)</span><br><span class="line">    <span class="keyword">if</span> rem:</span><br><span class="line">        dest.write(data)</span><br><span class="line">        dest.flush()</span><br><span class="line">        <span class="comment"># yield to any other pending backups</span></span><br><span class="line">        eventlet.sleep(<span class="number">0</span>)</span><br></pre></td></tr></table></figure>
+<p>这种情况下效率很低，非常耗时，不建议使用。</p>
+<h2 id="5-总结"><a href="#5-总结" class="headerlink" title="5 总结"></a>5 总结</h2><h2 id="5-1-Glance"><a href="#5-1-Glance" class="headerlink" title="5.1 Glance"></a>5.1 Glance</h2><p>\1. 上传镜像</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> create --size <span class="variable">$&#123;SIZE&#125;</span> <span class="variable">$&#123;IMAGE_ID&#125;</span></span><br><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> snap create <span class="variable">$&#123;IMAGE_ID&#125;</span>@snap</span><br><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> snap protect <span class="variable">$&#123;IMAGE_ID&#125;</span>@snap</span><br></pre></td></tr></table></figure>
+<p>\2. 删除镜像</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> snap unprotect <span class="variable">$&#123;IMAGE_ID&#125;</span>@snap</span><br><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> snap rm <span class="variable">$&#123;IMAGE_ID&#125;</span>@snap</span><br><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> rm <span class="variable">$&#123;IMAGE_ID&#125;</span></span><br></pre></td></tr></table></figure>
+<h2 id="5-2-Nova"><a href="#5-2-Nova" class="headerlink" title="5.2 Nova"></a>5.2 Nova</h2><p>1 创建虚拟机</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd <span class="built_in">clone</span> \</span><br><span class="line"><span class="variable">$&#123;GLANCE_POOL&#125;</span>/<span class="variable">$&#123;IMAGE_ID&#125;</span>@snap \</span><br><span class="line"><span class="variable">$&#123;NOVA_POOL&#125;</span>/<span class="variable">$&#123;SERVER_ID&#125;</span>_disk</span><br></pre></td></tr></table></figure>
+<p>2 创建虚拟机快照</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Snapshot the disk and clone </span></span><br><span class="line"><span class="comment"># it into Glance's storage pool</span></span><br><span class="line">rbd -p <span class="variable">$&#123;NOVA_POOL&#125;</span> snap create \</span><br><span class="line"><span class="variable">$&#123;SERVER_ID&#125;</span>_disk@<span class="variable">$&#123;RANDOM_UUID&#125;</span></span><br><span class="line">rbd -p <span class="variable">$&#123;NOVA_POOL&#125;</span> snap protect \</span><br><span class="line"><span class="variable">$&#123;SERVER_ID&#125;</span>_disk@<span class="variable">$&#123;RANDOM_UUID&#125;</span></span><br><span class="line">rbd <span class="built_in">clone</span> \</span><br><span class="line"><span class="variable">$&#123;NOVA_POOL&#125;</span>/<span class="variable">$&#123;SERVER_ID&#125;</span>_disk@<span class="variable">$&#123;RANDOM_UUID&#125;</span> \</span><br><span class="line"><span class="variable">$&#123;GLANCE_POOL&#125;</span>/<span class="variable">$&#123;IMAGE_ID&#125;</span> </span><br><span class="line"><span class="comment"># Flatten the image, which detaches it from the </span></span><br><span class="line"><span class="comment"># source snapshot</span></span><br><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> flatten <span class="variable">$&#123;IMAGE_ID&#125;</span> </span><br><span class="line"><span class="comment"># all done with the source snapshot, clean it up</span></span><br><span class="line">rbd -p <span class="variable">$&#123;NOVA_POOL&#125;</span> snap unprotect \</span><br><span class="line"><span class="variable">$&#123;SERVER_ID&#125;</span>_disk@<span class="variable">$&#123;RANDOM_UUID&#125;</span></span><br><span class="line">rbd -p <span class="variable">$&#123;NOVA_POOL&#125;</span> snap rm \</span><br><span class="line"><span class="variable">$&#123;SERVER_ID&#125;</span>_disk@<span class="variable">$&#123;RANDOM_UUID&#125;</span> </span><br><span class="line"><span class="comment"># Makes a protected snapshot called 'snap' on </span></span><br><span class="line"><span class="comment"># uploaded images and hands it out</span></span><br><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> snap create <span class="variable">$&#123;IMAGE_ID&#125;</span>@snap</span><br><span class="line">rbd -p <span class="variable">$&#123;GLANCE_POOL&#125;</span> snap protect <span class="variable">$&#123;IMAGE_ID&#125;</span>@snap</span><br></pre></td></tr></table></figure>
+<p>3 删除虚拟机</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> image <span class="keyword">in</span> $(rbd -p <span class="variable">$&#123;NOVA_POOL&#125;</span> ls | grep <span class="string">"^<span class="variable">$&#123;SERVER_ID&#125;</span>"</span>);</span><br><span class="line"><span class="keyword">do</span> </span><br><span class="line">    rbd -p <span class="variable">$&#123;NOVA_POOL&#125;</span> rm <span class="string">"<span class="variable">$image</span>"</span>; </span><br><span class="line"><span class="keyword">done</span></span><br></pre></td></tr></table></figure>
+<h2 id="5-3-Cinder"><a href="#5-3-Cinder" class="headerlink" title="5.3 Cinder"></a>5.3 Cinder</h2><p>1 创建volume</p>
+<p>(1) 创建空白卷</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rbd -p <span class="variable">$&#123;CINDER_POOL&#125;</span> create \</span><br><span class="line">--new-format --size <span class="variable">$&#123;SIZE&#125;</span> \</span><br><span class="line">volume-<span class="variable">$&#123;VOLUME_ID&#125;</span></span><br></pre></td></tr></table></figure>
+<p>(2) 从快照中创建</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">rbd <span class="built_in">clone</span> \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span>@snapshot-<span class="variable">$&#123;SNAPSHOT_ID&#125;</span> \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span></span><br><span class="line">rbd resize --size <span class="variable">$&#123;SIZE&#125;</span> \</span><br><span class="line">openstack/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span></span><br></pre></td></tr></table></figure>
+<p>(3) 从volume中创建</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Do full copy if rbd_max_clone_depth &lt;= 0.</span></span><br><span class="line"><span class="keyword">if</span> [[ <span class="string">"<span class="variable">$rbd_max_clone_depth</span>"</span> -le 0 ]]; <span class="keyword">then</span></span><br><span class="line">    rbd copy \</span><br><span class="line">    <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span> \</span><br><span class="line">    <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span></span><br><span class="line">    <span class="built_in">exit</span> 0</span><br><span class="line"><span class="keyword">fi</span></span><br><span class="line"><span class="comment"># Otherwise do COW clone.</span></span><br><span class="line"><span class="comment"># Create new snapshot of source volume</span></span><br><span class="line">rbd snap create \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span>@volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.clone_snap</span><br><span class="line">rbd snap protect \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span>@volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.clone_snap</span><br><span class="line"><span class="comment"># Now clone source volume snapshot</span></span><br><span class="line">rbd <span class="built_in">clone</span> \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span>@volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.clone_snap \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span></span><br><span class="line"><span class="comment"># If dest volume is a clone and rbd_max_clone_depth reached,</span></span><br><span class="line"><span class="comment"># flatten the dest after cloning.</span></span><br><span class="line">depth=$(get_clone_depth <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>)</span><br><span class="line"><span class="keyword">if</span> [[ <span class="string">"<span class="variable">$depth</span>"</span> -ge <span class="string">"<span class="variable">$rbd_max_clone_depth</span>"</span> ]]; <span class="keyword">then</span></span><br><span class="line">    <span class="comment"># Flatten destination volume </span></span><br><span class="line">    rbd flatten <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span></span><br><span class="line">    <span class="comment"># remove temporary snap</span></span><br><span class="line">    rbd snap unprotect \</span><br><span class="line">    <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span>@volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.clone_snap</span><br><span class="line">    rbd snap rm \</span><br><span class="line">    <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span>@volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.clone_snap</span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+<p>(4) 从镜像中创建</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">rbd <span class="built_in">clone</span> \</span><br><span class="line"><span class="variable">$&#123;GLANCE_POOL&#125;</span>/<span class="variable">$&#123;IMAGE_ID&#125;</span>@snap \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span></span><br><span class="line"><span class="keyword">if</span> [[ -n <span class="string">"<span class="variable">$&#123;SIZE&#125;</span>"</span> ]]; <span class="keyword">then</span></span><br><span class="line">    rbd resize --size <span class="variable">$&#123;SIZE&#125;</span> <span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span></span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+<p>2 创建快照</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">rbd -p <span class="variable">$&#123;CINDER_POOL&#125;</span> snap create \</span><br><span class="line">volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>@snapshot-<span class="variable">$&#123;SNAPSHOT_ID&#125;</span></span><br><span class="line">rbd -p <span class="variable">$&#123;CINDER_POOL&#125;</span> snap protect \</span><br><span class="line">volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>@snapshot-<span class="variable">$&#123;SNAPSHOT_ID&#125;</span></span><br></pre></td></tr></table></figure>
+<p>3 创建备份</p>
+<p>(1) 第一次备份</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">rbd -p $&#123;BACKUP_POOL&#125; create \</span><br><span class="line">--size $&#123;VOLUME_SIZE&#125; \</span><br><span class="line">volume-$&#123;VOLUME_ID&#125;.backup.base</span><br><span class="line">NEW_SNAP=volume-$&#123;VOLUME_ID&#125;@backup.$&#123;BACKUP_ID&#125;.snap.$&#123;TIMESTAMP&#125;</span><br><span class="line">rbd -p $&#123;CINDER_POOL&#125; snap create $&#123;NEW_SNAP&#125;</span><br><span class="line">rbd export-diff $&#123;CINDER_POOL&#125;/volume-$&#123;VOLUME_ID&#125;$&#123;NEW_SNAP&#125; - \</span><br><span class="line">| rbd import-diff --pool $&#123;BACKUP_POOL&#125; - \</span><br><span class="line">volume-$&#123;VOLUME_ID&#125;.backup.base</span><br></pre></td></tr></table></figure>
+<p>(2) 增量备份</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">rbd -p <span class="variable">$&#123;CINDER_POOL&#125;</span> snap create \</span><br><span class="line">volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>@backup.<span class="variable">$&#123;BACKUP_ID&#125;</span>.snap.<span class="variable">$&#123;TIMESTAMP&#125;</span> </span><br><span class="line">rbd <span class="built_in">export</span>-diff  --pool <span class="variable">$&#123;CINDER_POOL&#125;</span> \</span><br><span class="line">--from-snap backup.<span class="variable">$&#123;PARENT_ID&#125;</span>.snap.<span class="variable">$&#123;LAST_TIMESTAMP&#125;</span> \</span><br><span class="line"><span class="variable">$&#123;CINDER_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>@backup.<span class="variable">$&#123;BACKUP_ID&#125;</span>.snap.<span class="variable">$&#123;TIMESTRAMP&#125;</span> - \</span><br><span class="line">| rbd import-diff --pool <span class="variable">$&#123;BACKUP_POOL&#125;</span> - \</span><br><span class="line"><span class="variable">$&#123;BACKUP_POOL&#125;</span>/volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.backup.base</span><br><span class="line">rbd -p <span class="variable">$&#123;CINDER_POOL&#125;</span> snap rm \</span><br><span class="line">volume-<span class="variable">$&#123;VOLUME_ID&#125;</span>.backup.base@backup.<span class="variable">$&#123;PARENT_ID&#125;</span>.snap.<span class="variable">$&#123;LAST_TIMESTAMP&#125;</span></span><br></pre></td></tr></table></figure>
+<h2 id="4-备份恢复"><a href="#4-备份恢复" class="headerlink" title="4 备份恢复"></a>4 备份恢复</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">rbd <span class="built_in">export</span>-diff --pool <span class="variable">$&#123;BACKUP_POOL&#125;</span> \</span><br><span class="line">volume-<span class="variable">$&#123;SOURCE_VOLUME_ID&#125;</span>.backup.base@backup.<span class="variable">$&#123;BACKUP_ID&#125;</span>.snap.<span class="variable">$&#123;TIMESTRAMP&#125;</span> - \</span><br><span class="line">| rbd import-diff --pool <span class="variable">$&#123;CINDER_POOL&#125;</span> - \</span><br><span class="line">volume-<span class="variable">$&#123;DEST_VOLUME_ID&#125;</span></span><br><span class="line">rbd -p <span class="variable">$&#123;CINDER_POOL&#125;</span> resize \</span><br><span class="line">--size <span class="variable">$&#123;new_size&#125;</span> volume-<span class="variable">$&#123;DEST_VOLUME_ID&#125;</span></span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+        
+      
+        <div id="reward-container">
+  <div>坚持原创技术分享，您的支持将鼓励我继续创作！</div>
+  <button id="reward-button" disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+        
+      
+      <div style="display: inline-block">
+        <img src="/images/wechat.png" alt="云天 微信支付">
+        <p>微信支付</p>
+      </div>
+        
+      
+      <div style="display: inline-block">
+        <img src="/images/alipay.jpg" alt="云天 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+      
+
+      <footer class="post-footer">
+          
+            
+          
+          <div class="post-tags">
+            
+              <a href="/tags/ceph/" rel="tag"># ceph</a>
+            
+          </div>
+        
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+              
+                <a href="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/" rel="next" title="存储阵列技术">
+                  <i class="fa fa-chevron-left"></i> 存储阵列技术
+                </a>
+              
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+              
+            </div>
+          </div>
+        
+      </footer>
+    
+  </div>
+  
+  
+  
+  </article>
+
+  </div>
+
+
+          </div>
+          
+
+        </div>
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+        
+        
+        
+        
+      
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-背景知识"><span class="nav-number">1.</span> <span class="nav-text">1 背景知识</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-1-Ceph简介"><span class="nav-number">2.</span> <span class="nav-text">1.1 Ceph简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2-OpenStack简介"><span class="nav-number">3.</span> <span class="nav-text">1.2 OpenStack简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Glance"><span class="nav-number">4.</span> <span class="nav-text">2 Glance</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-Glance介绍"><span class="nav-number">5.</span> <span class="nav-text">2.1 Glance介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-镜像上传"><span class="nav-number">6.</span> <span class="nav-text">2.2 镜像上传</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#启示"><span class="nav-number">7.</span> <span class="nav-text">启示</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3-镜像删除"><span class="nav-number">8.</span> <span class="nav-text">2.3 镜像删除</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Nova"><span class="nav-number">9.</span> <span class="nav-text">3 Nova</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-1-Nova介绍"><span class="nav-number">10.</span> <span class="nav-text">3.1 Nova介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-2-创建虚拟机"><span class="nav-number">11.</span> <span class="nav-text">3.2 创建虚拟机</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#启示-1"><span class="nav-number">12.</span> <span class="nav-text">启示</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-3-创建虚拟机快照"><span class="nav-number">13.</span> <span class="nav-text">3.3 创建虚拟机快照</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#启示-2"><span class="nav-number">14.</span> <span class="nav-text">启示</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-4-删除虚拟机"><span class="nav-number">15.</span> <span class="nav-text">3.4 删除虚拟机</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Cinder"><span class="nav-number">16.</span> <span class="nav-text">4 Cinder</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-Cinder介绍"><span class="nav-number">17.</span> <span class="nav-text">4.1 Cinder介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-创建volume"><span class="nav-number">18.</span> <span class="nav-text">4.2 创建volume</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#raw"><span class="nav-number">19.</span> <span class="nav-text">raw</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#create-from-snapshot"><span class="nav-number">20.</span> <span class="nav-text">create from snapshot</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#create-from-volume"><span class="nav-number">21.</span> <span class="nav-text">create from volume</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#create-from-image"><span class="nav-number">22.</span> <span class="nav-text">create from image</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-3-创建快照"><span class="nav-number">23.</span> <span class="nav-text">4.3 创建快照</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-4-创建volume备份"><span class="nav-number">24.</span> <span class="nav-text">4.4 创建volume备份</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#全量备份-第一次备份"><span class="nav-number">25.</span> <span class="nav-text">全量备份(第一次备份)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#增量备份"><span class="nav-number">26.</span> <span class="nav-text">增量备份</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-5-备份恢复"><span class="nav-number">27.</span> <span class="nav-text">4.5 备份恢复</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-总结"><span class="nav-number">28.</span> <span class="nav-text">5 总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-1-Glance"><span class="nav-number">29.</span> <span class="nav-text">5.1 Glance</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-2-Nova"><span class="nav-number">30.</span> <span class="nav-text">5.2 Nova</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-3-Cinder"><span class="nav-number">31.</span> <span class="nav-text">5.3 Cinder</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-备份恢复"><span class="nav-number">32.</span> <span class="nav-text">4 备份恢复</span></a></li></ol></div>
+        
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image"
+      src="/images/favicon.png"
+      alt="云天">
+  <p class="site-author-name" itemprop="name">云天</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+        
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+    
+      
+      
+      <div class="site-state-item site-state-categories">
+        
+          
+            <a href="/categories/">
+          
+        
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+    
+      
+      
+      <div class="site-state-item site-state-tags">
+        
+          
+            <a href="/tags/">
+          
+        
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+    
+  </nav>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+      
+      
+      
+        
+      
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3RpZ2VydGlwZXI=" title="GitHub &rarr; https://github.com/tigertiper"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+    
+      <span class="links-of-author-item">
+      
+      
+      
+        
+      
+        <span class="exturl" data-url="bWFpbHRvOmlhbXRpYW5wZW5nQGdtYWlsLmNvbQ==" title="E-Mail &rarr; mailto:iamtianpeng@gmail.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+    
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    
+  
+    <span class="exturl cc-opacity" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC8="><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; 2014 – <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">云天</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">79k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">1:12</span>
+</div><div class="footer-custom">
+
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+
+
+  <script src="/lib/anime.min.js?v=3.1.0"></script>
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+<script src="/js/utils.js?v=7.4.0"></script>
+<script src="/js/schemes/muse.js?v=7.4.0"></script>
+
+<script src="/js/next-boot.js?v=7.4.0"></script>
+
+
+
+  
+
+
+
+
+
+
+
+
+  <script src="/js/local-search.js?v=7.4.0"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+    
+      
+<script type="text/x-mathjax-config">
+
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$', '$'], ['\\(', '\\)'] ],
+      processEscapes: true,
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    },
+    TeX: {
+      equationNumbers: {
+        autoNumber: 'AMS'
+      }
+    }
+  });
+
+  MathJax.Hub.Register.StartupHook('TeX Jax Ready', function() {
+    MathJax.InputJax.TeX.prefilterHooks.Add(function(data) {
+      if (data.display) {
+        var next = data.script.nextSibling;
+        while (next && next.nodeName.toLowerCase() === '#text') {
+          next = next.nextSibling;
+        }
+        if (next && next.nodeName.toLowerCase() === 'br') {
+          next.parentNode.removeChild(next);
+        }
+      }
+    });
+  });
+
+  MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for (i = 0; i < all.length; i += 1) {
+      element = document.getElementById(all[i].inputID + '-Frame').parentNode;
+      if (element.nodeName.toLowerCase() == 'li') {
+        element = element.parentNode;
+      }
+      element.classList.add('has-jax');
+    }
+  });
+</script>
+<script>
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML', () => {
+    MathJax.Hub.Typeset();
+  }, window.MathJax);
+</script>
+
+    
+  
+
+  
+
+  
+
+</body>
+</html>

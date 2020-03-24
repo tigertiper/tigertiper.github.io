@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+
+
+
+
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 3.9.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.4.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.4.0">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.4.0">
+  <link rel="mask-icon" href="/images/logo.svg?v=7.4.0" color="#222">
+  <meta name="yandex-verification" content="3ac9ae36ddebb425">
+
+<link rel="stylesheet" href="/css/main.css?v=7.4.0">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css?v=4.7.0">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '7.4.0',
+    exturl: true,
+    sidebar: {"onmobile":true,"display":"post"},
+    copycode: {"enable":true},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":true,"trigger":"auto","top_n_per_article":1,"preload":true},
+    path: 'search.xml',
+    motion: {"enable":false},
+    translation: {
+      copy_button: '复制',
+      copy_success: '复制成功',
+      copy_failure: '复制失败'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="由于项目需要，将原来的磁盘缓存方案由flashcache替换成Bcache，故针对Bcache作了一番了解。所以记录下学习成果，防止遗忘。文中所有的操作都基于CentOS 7环境，以下不再赘述。">
+<meta name="keywords" content="bcache">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Bcache使用">
+<meta property="og:url" content="https://tigertiper.github.io/2019/09/04/bcache-jian-jie/index.html">
+<meta property="og:site_name" content="云天">
+<meta property="og:description" content="由于项目需要，将原来的磁盘缓存方案由flashcache替换成Bcache，故针对Bcache作了一番了解。所以记录下学习成果，防止遗忘。文中所有的操作都基于CentOS 7环境，以下不再赘述。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2020-03-24T00:27:50.100Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Bcache使用">
+<meta name="twitter:description" content="由于项目需要，将原来的磁盘缓存方案由flashcache替换成Bcache，故针对Bcache作了一番了解。所以记录下学习成果，防止遗忘。文中所有的操作都基于CentOS 7环境，以下不再赘述。">
+  <link rel="canonical" href="https://tigertiper.github.io/2019/09/04/bcache-jian-jie/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Bcache使用 | 云天</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?fd574cb48e199b8e88b0f9f8a18322e2";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">云天</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+      
+      
+      
+        
+        <li class="menu-item menu-item-home">
+      
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+      
+      
+      
+        
+        <li class="menu-item menu-item-about">
+      
+    
+      
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+      
+      
+      
+        
+        <li class="menu-item menu-item-archives">
+      
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">5</span></a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger">
+        
+          <i class="menu-item-icon fa fa-search fa-fw"></i> <br>搜索</a>
+      </li>
+    
+  </ul>
+
+    
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="text" id="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result"></div>
+
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+      <article itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block post">
+    <link itemprop="mainEntityOfPage" href="https://tigertiper.github.io/2019/09/04/bcache-jian-jie/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="云天">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/favicon.png">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="云天">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">Bcache使用<span class="exturl post-edit-link" data-url="aHR0cHM6Ly9naXRodWIuY29tL3RpZ2VydGlwZXIvbXlibG9nL2VkaXQvbWFzdGVyL3NvdXJjZS9fcG9zdHMvQmNhY2hl566A5LuLLm1k" title="编辑"><i class="fa fa-pencil"></i></span>
+
+          
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              
+                
+              
+
+              <time title="创建时间：2019-09-04 12:31:06" itemprop="dateCreated datePublished" datetime="2019-09-04T12:31:06+08:00">2019-09-04</time>
+            </span>
+          
+            
+
+            
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-03-24 08:27:50" itemprop="dateModified" datetime="2020-03-24T08:27:50+08:00">2020-03-24</time>
+              </span>
+            
+          
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/存储技术/" itemprop="url" rel="index"><span itemprop="name">存储技术</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">本文字数：</span>
+              
+              <span>8.1k</span>
+            </span>
+          
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              
+              <span>7 分钟</span>
+            </span>
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>由于项目需要，将原来的磁盘缓存方案由flashcache替换成Bcache，故针对Bcache作了一番了解。所以记录下学习成果，防止遗忘。文中所有的操作都基于CentOS 7环境，以下不再赘述。</p>
+</blockquote><a id="more"></a>
+<h2 id="Bcache简介"><a href="#Bcache简介" class="headerlink" title="Bcache简介"></a>Bcache简介</h2><p>Bcache是Linux内核块设备层cache，支持多块HDD使用同一块SSD作为缓存盘。它让SSD作为HDD的缓存成为了可能。由于SSD价格昂贵，存储空间小，而HDD价格低廉，存储空间大，因此采用SSD作为缓存，HDD作为数据存储盘，既解决了SSD容量太小，又解决了HDD运行速度太慢的问题。<br> 注：Bcache是从Linux-3.10开始正式并入内核主线的，因此，要使用Bcache，需要将内核升级到3.10及以上版本才行。</p>
+<h2 id="Bcache缓存策略"><a href="#Bcache缓存策略" class="headerlink" title="Bcache缓存策略"></a>Bcache缓存策略</h2><p>Bcache支持三种缓存策略，分别是：writeback、writethrough、writearoud，默认使用writethrough，缓存策略可动态修改。</p>
+<ul>
+<li><strong>writeback 回写策略</strong>：回写策略默认是关闭的，如果开启此策略，则所有的数据将先写入缓存盘，然后等待系统将数据回写入后端数据盘中。</li>
+<li><strong>writethrough 写通策略</strong>：默认的就是写通策略，此模式下，数据将会同时写入缓存盘和后端数据盘。</li>
+<li><strong>writearoud</strong> ：选择此策略，数据将直接写入后端磁盘。</li>
+</ul>
+<h2 id="bcache-tools的安装与使用"><a href="#bcache-tools的安装与使用" class="headerlink" title="bcache-tools的安装与使用"></a>bcache-tools的安装与使用</h2><h3 id="bcache-tools的安装"><a href="#bcache-tools的安装" class="headerlink" title="bcache-tools的安装"></a>bcache-tools的安装</h3><p>要使用Bcache，必须安装bcache-tools工具包，由于CentOS 7的源中没有bcache-tools，因此，需要手动下载源码包进行编译。源码在这：<span class="exturl" data-url="aHR0cHM6Ly9saW5rLmppYW5zaHUuY29tP3Q9aHR0cHM6Ly9naXRodWIuY29tL2cycC9iY2FjaGUtdG9vbHMuZ2l0" title="https://link.jianshu.com?t=https://github.com/g2p/bcache-tools.git">bcache-tools<i class="fa fa-external-link"></i></span>，下载之后，需要安装libblkid-devel依赖包方可进行编译，通过以下命令即可安装：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install libblkid-devel</span><br></pre></td></tr></table></figure>
+<p>安装libblkid-devel包成功之后，直接编译bcache-tools安装即可。</p>
+<h3 id="bcache-tools的使用"><a href="#bcache-tools的使用" class="headerlink" title="bcache-tools的使用"></a>bcache-tools的使用</h3><p>使用磁盘作为Bcache磁盘前，请先确保磁盘是空的，或者磁盘中的数据无关紧要。如果磁盘中有文件系统，将会出现如下错误：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># make-bcache -C /dev/sdc</span></span><br><span class="line">Device /dev/sdc already has a non-bcache superblock, remove it using wipefs and wipefs -a</span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>此时，需要使用wipefs命令，<strong>擦除磁盘中的超级块中的数据，这将使得原磁盘中的数据无法继续使用，也无法进行还原，因此，使用此命令前，请确保磁盘中的数据已经备份</strong>。</p>
+<ul>
+<li>擦除磁盘中的超级块信息：</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># wipefs -a /dev/sdc</span></span><br><span class="line">/dev/sdc: 2 bytes were erased at offset 0x00000438 (ext4): 53 ef</span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>创建Bcache后端磁盘（HDD）:</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># make-bcache -B /dev/sdb</span></span><br><span class="line">UUID:           774756de-38e1-42dd-9fcc-5c363db7b319</span><br><span class="line">Set UUID:       2edf6ef1-652d-4bb3-b5b3-663725a70ccd</span><br><span class="line">version:        1</span><br><span class="line">block_size:     1</span><br><span class="line">data_offset:        16</span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>创建Bcache缓存磁盘（SSD）：</li>
+</ul>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[<span class="meta">root@localhost ~</span>]<span class="meta"># make-bcache -C /dev/sdc</span></span><br><span class="line">UUID:           <span class="number">8</span>c36cd15<span class="number">-5</span>ada<span class="number">-4</span>cfe-a6c4-dd7ce96e30be</span><br><span class="line">Set UUID:       b506d850<span class="number">-19</span>c5<span class="number">-4260</span><span class="number">-945e-108764632</span>bee</span><br><span class="line">version:        <span class="number">0</span></span><br><span class="line">nbuckets:       <span class="number">20480</span></span><br><span class="line">block_size:     <span class="number">1</span></span><br><span class="line">bucket_size:        <span class="number">1024</span></span><br><span class="line">nr_in_set:      <span class="number">1</span></span><br><span class="line">nr_this_dev:        <span class="number">0</span></span><br><span class="line">first_bucket:       <span class="number">1</span></span><br><span class="line">[<span class="meta">root@localhost ~</span>]<span class="meta">#</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>查看Bcache磁盘：</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># lsblk /dev/sdb</span></span><br><span class="line">NAME      MAJ:MIN RM SIZE RO TYPE MOUNTPOINT</span><br><span class="line">sdb         8:16   0  10G  0 disk </span><br><span class="line">└─bcache0 253:1    0  10G  0 disk </span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>可以看到，在sdb(HDD)磁盘下，出现了bcache0节点，现在，可以像普通磁盘一样，对其进行格式化操作了。</p>
+<h2 id="Bcache磁盘配置"><a href="#Bcache磁盘配置" class="headerlink" title="Bcache磁盘配置"></a>Bcache磁盘配置</h2><h3 id="格式化Bcache磁盘并挂载"><a href="#格式化Bcache磁盘并挂载" class="headerlink" title="格式化Bcache磁盘并挂载"></a>格式化Bcache磁盘并挂载</h3><p>要使用bcache磁盘，需要先将磁盘进行格式化，可以使用mkfs.ext4将bcache磁盘格式化成ext4，操作如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># mkfs.ext4 -F /dev/bcache0</span></span><br><span class="line">mke2fs 1.42.9 (28-Dec-2013)</span><br><span class="line">Discarding device blocks: <span class="keyword">done</span>                            </span><br><span class="line">Filesystem label=</span><br><span class="line">OS <span class="built_in">type</span>: Linux</span><br><span class="line">Block size=4096 (<span class="built_in">log</span>=2)</span><br><span class="line">Fragment size=4096 (<span class="built_in">log</span>=2)</span><br><span class="line">Stride=0 blocks, Stripe width=0 blocks</span><br><span class="line">655360 inodes, 2621438 blocks</span><br><span class="line">131071 blocks (5.00%) reserved <span class="keyword">for</span> the super user</span><br><span class="line">First data block=0</span><br><span class="line">Maximum filesystem blocks=2151677952</span><br><span class="line">80 block groups</span><br><span class="line">32768 blocks per group, 32768 fragments per group</span><br><span class="line">8192 inodes per group</span><br><span class="line">Superblock backups stored on blocks: </span><br><span class="line">    32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632</span><br><span class="line"></span><br><span class="line">Allocating group tables: <span class="keyword">done</span>                            </span><br><span class="line">Writing inode tables: <span class="keyword">done</span>                            </span><br><span class="line">Creating journal (32768 blocks): <span class="keyword">done</span></span><br><span class="line">Writing superblocks and filesystem accounting information: <span class="keyword">done</span> </span><br><span class="line"></span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>此时，即可进行挂载，如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># mount /dev/bcache0 /mnt</span></span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<h3 id="添加缓存盘"><a href="#添加缓存盘" class="headerlink" title="添加缓存盘"></a>添加缓存盘</h3><p>要为bcache后端磁盘添加缓存盘，在创建缓存盘成功之后，首先需要获取该缓存盘的cset.uuid，通过bcache-super-show命令查看：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># bcache-super-show /dev/sdc</span></span><br><span class="line">sb.magic        ok</span><br><span class="line">sb.first_sector     8 [match]</span><br><span class="line">sb.csum         E9D2701DC04A0A13 [match]</span><br><span class="line">sb.version      3 [cache device]</span><br><span class="line"></span><br><span class="line">dev.label       (empty)</span><br><span class="line">dev.uuid        000771bd-5c58-4713-9fba-23312efb01a8</span><br><span class="line">dev.sectors_per_block   1</span><br><span class="line">dev.sectors_per_bucket  1024</span><br><span class="line">dev.cache.first_sector  1024</span><br><span class="line">dev.cache.cache_sectors 20970496</span><br><span class="line">dev.cache.total_sectors 20971520</span><br><span class="line">dev.cache.ordered   yes</span><br><span class="line">dev.cache.discard   no</span><br><span class="line">dev.cache.pos       0</span><br><span class="line">dev.cache.replacement   0 [lru]</span><br><span class="line"></span><br><span class="line">cset.uuid       d0079bae-b749-468b-ad0c-6fedbbc742f4</span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>如上命令结果所示，最后一行即为该缓存盘的cset.uuid，只要将此缓存盘的cset.uuid attach到bcache磁盘即可实现添加缓存操作，命令如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># echo "d0079bae-b749-468b-ad0c-6fedbbc742f4" &gt;/sys/block/bcache0/bcache/attach </span></span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>操作完成后，可以通过lsblk命令查看结果：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># lsblk /dev/sdb /dev/sdc</span></span><br><span class="line">NAME      MAJ:MIN RM SIZE RO TYPE MOUNTPOINT</span><br><span class="line">sdb         8:16   0  10G  0 disk </span><br><span class="line">└─bcache0 253:1    0  10G  0 disk /mnt</span><br><span class="line">sdc         8:32   0  10G  0 disk </span><br><span class="line">└─bcache0 253:1    0  10G  0 disk /mnt</span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>此时可以看到，sdc下也出现了bcache0设备，即表示缓存添加成功。</p>
+<h3 id="删除缓存盘"><a href="#删除缓存盘" class="headerlink" title="删除缓存盘"></a>删除缓存盘</h3><p>要将缓存盘从当前的后端磁盘删除，只需将缓存盘的cset.uuid detach到bcache磁盘即可实现，命令如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># echo "d0079bae-b749-468b-ad0c-6fedbbc742f4" &gt;/sys/block/bcache0/bcache/detach </span></span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>操作完成后，可以通过lsblk命令查看结果：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># lsblk /dev/sdb /dev/sdc</span></span><br><span class="line">NAME      MAJ:MIN RM SIZE RO TYPE MOUNTPOINT</span><br><span class="line">sdb         8:16   0  10G  0 disk </span><br><span class="line">└─bcache0 253:1    0  10G  0 disk /mnt</span><br><span class="line">sdc         8:32   0  10G  0 disk </span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>此时可以看到，sdc下的bcache0设备不见了，即表示缓存删除成功。</p>
+<h3 id="注销缓存盘"><a href="#注销缓存盘" class="headerlink" title="注销缓存盘"></a>注销缓存盘</h3><p><strong>注销缓存前，请先确保当前缓存盘没有作为缓存使用，即通过lsblk看不到缓存磁盘下面的bcahe设备，如果当前磁盘正在使用，而进行注销操作，可能导致缓存盘的数据不能及时写入后端磁盘，造成数据丢失。</strong><br> 通过缓存盘的cset.uuid，在/sys/fs/bcache/<cset.uuid>/unregister写入1,即可进行注销操作，操作如下：</cset.uuid></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># echo 1&gt;/sys/fs/bcache/d0079bae-b749-468b-ad0c-6fedbbc742f4/unregister </span></span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>操作完成后，通过ls查看/sys/fs/bcache/d0079bae-b749-468b-ad0c-6fedbbc742f4，如果该目录不存在，则表示注销成功。</p>
+<h3 id="停用bcache后端磁盘"><a href="#停用bcache后端磁盘" class="headerlink" title="停用bcache后端磁盘"></a>停用bcache后端磁盘</h3><p><strong>停用后端磁盘前，请先确保当前磁盘没有附加缓存盘使用，如果当前磁盘正在使用缓存磁盘而进行操作，可能导致缓存盘的数据不能及时写入后端磁盘，造成数据丢失。</strong></p>
+<ol>
+<li>卸载后端磁盘</li>
+</ol>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># umount /dev/bcache0</span></span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<ol>
+<li>停用缓存磁盘</li>
+</ol>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># echo 1&gt;/sys/block/bcache0/bcache/stop</span></span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>操作完成后，通过lsblk命令查看结果：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># lsblk /dev/sdb</span></span><br><span class="line">NAME      MAJ:MIN RM SIZE RO TYPE MOUNTPOINT</span><br><span class="line">sdb         8:16   0  10G  0 disk </span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>此时，sdb设备下并无bcache磁盘，即表示bcache后端磁盘已经停用。</p>
+<h2 id="Bcache使用之系统配置"><a href="#Bcache使用之系统配置" class="headerlink" title="Bcache使用之系统配置"></a>Bcache使用之系统配置</h2><h3 id="配置-etc-fstab"><a href="#配置-etc-fstab" class="headerlink" title="配置/etc/fstab"></a>配置/etc/fstab</h3><p>/etc/fstab文件保存着Linux系统启动过程中，使用的挂载配置，文件中的每一行都对应着系统中的一个挂载点，有关fstab文件的说明，在此不做介绍。<br> 要想bcache磁盘在系统重启时，进行自动挂载，需要将配置写入fatab文件中，操作如下：</p>
+<h4 id="获取bcache设备的UUID"><a href="#获取bcache设备的UUID" class="headerlink" title="获取bcache设备的UUID"></a>获取bcache设备的UUID</h4><p>由于bcache<n>设备在每次重启后，N的值并不是固定的，有可能重启后，原先的bcahe0变为bcache1，而bcache1却变成了bcache0，。所以，不能将/dev/bcache<n>作为磁盘挂载，需要使用该磁盘的UUID进行挂载，通过以下命令可以获取磁盘的UUID：</n></n></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># blkid /dev/bcache0 </span></span><br><span class="line">/dev/bcache0: UUID=<span class="string">"3b015acd-904a-4a91-9b98-43d4bbd19f2e"</span> TYPE=<span class="string">"ext4"</span> </span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p><strong>注：此UUID为磁盘进行格式化之后，生成了文件系统的UUID，并非上面所说的bcache缓存盘的cset.uuid。</strong></p>
+<h4 id="将UUID配置写入-etc-fstab"><a href="#将UUID配置写入-etc-fstab" class="headerlink" title="将UUID配置写入/etc/fstab"></a>将UUID配置写入/etc/fstab</h4><figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[<span class="meta">root@localhost ~</span>]<span class="meta"># echo "`blkid /dev/bcache0 |awk '&#123;print $2&#125;'|sed  's/\"//g'`    /mnt                       ext4     defaults        0 0" &gt;&gt;/etc/fstab </span></span><br><span class="line">[<span class="meta">root@localhost ~</span>]<span class="meta">#</span></span><br></pre></td></tr></table></figure>
+<h3 id="配置bcache内核模块开机自动加载"><a href="#配置bcache内核模块开机自动加载" class="headerlink" title="配置bcache内核模块开机自动加载"></a>配置bcache内核模块开机自动加载</h3><p>此步骤仅仅针对将bcache编译成内核模块的系统，由于bcache以内核模块的形式存在，那么系统启动后，将不会自动加载bcache模块，那么我们上面配置的bcache将无法自动加载，所以，需要修改系统配置，使得bcache模块开机自动加载。为了完成此功能，只需要在/etc/sysconfig/modules增加bcache.modules文件，文件内容如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">#!/bin/sh</span><br><span class="line"></span><br><span class="line">modprobe bcache &gt;/dev/null 2&gt;&amp;1</span><br><span class="line"></span><br><span class="line">exit 0</span><br></pre></td></tr></table></figure>
+<p>添加bcache.modules文件后，需要增加其可执行权限才能正常加载bcache模块，命令如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># chmod +x bcache.modules </span></span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<h2 id="Bcache注意事项"><a href="#Bcache注意事项" class="headerlink" title="Bcache注意事项"></a>Bcache注意事项</h2><h3 id="writeback"><a href="#writeback" class="headerlink" title="writeback"></a>writeback</h3><p>使用Bcache磁盘，当缓存使用writeback写回策略，在停用后端磁盘或者注销缓存磁盘时，一定要保证缓存盘已经完全从后端磁盘移除，否则可能导致数据丢失，甚至磁盘损坏。在缓存还在工作时，不能将磁盘进行热插拔，这将导致数据异常。</p>
+<h3 id="make-bcache"><a href="#make-bcache" class="headerlink" title="make-bcache"></a>make-bcache</h3><ul>
+<li>如果使用make-bcache命令出现了如下打印，那就说明当前磁盘已经是bcache磁盘，</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># make-bcache -B /dev/sdb</span></span><br><span class="line">Already a bcache device on /dev/sdb, overwrite with --wipe-bcache</span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>加上 —wipe-bcache参数就可以了：make-bcache -B /dev/sdb  —wipe-bcache</p>
+<ul>
+<li>make-bcache支持快速创建后端磁盘和缓存磁盘，并自动化建立绑定两者的绑定关系，命令如下：</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># make-bcache -B /dev/sdb -C /dev/sdc --wipe-bcache</span></span><br><span class="line">UUID:           8e8da86d-7cda-4e06-b05b-dd7309c33cf6</span><br><span class="line">Set UUID:       ff92c353-bfcf-4f51-b2b8-8eb7792d491e</span><br><span class="line">version:        0</span><br><span class="line">nbuckets:       20480</span><br><span class="line">block_size:     1</span><br><span class="line">bucket_size:        1024</span><br><span class="line">nr_in_set:      1</span><br><span class="line">nr_this_dev:        0</span><br><span class="line">first_bucket:       1</span><br><span class="line">UUID:           4df35dfa-00f7-4c27-9838-e6853cdfaf48</span><br><span class="line">Set UUID:       ff92c353-bfcf-4f51-b2b8-8eb7792d491e</span><br><span class="line">version:        1</span><br><span class="line">block_size:     1</span><br><span class="line">data_offset:        16</span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>通过lsblk命令查看结果：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]<span class="comment"># lsblk /dev/sdb /dev/sdc</span></span><br><span class="line">NAME      MAJ:MIN RM SIZE RO TYPE MOUNTPOINT</span><br><span class="line">sdb         8:16   0  10G  0 disk </span><br><span class="line">└─bcache3 253:3    0  10G  0 disk </span><br><span class="line">sdc         8:32   0  10G  0 disk </span><br><span class="line">└─bcache3 253:3    0  10G  0 disk </span><br><span class="line">[root@localhost ~]<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+<p>此时，sdc已经作为sdb的缓存盘了，无需再进行添加缓存的操作了。</p>
+<h3 id="经典的Device-busy"><a href="#经典的Device-busy" class="headerlink" title="经典的Device busy"></a>经典的Device busy</h3><p>通常，在操作过程中，由于没有完全的注销缓存或者停用后端磁盘而导致出现：Can’t open dev /dev/sd<x>: Device or resource busy错误，此时，只需要找到磁盘所在的节点，缓存盘则注销，后端磁盘则停用即可。</x></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>Bcache作为新的缓存方案，给系统运行速度带来了极大地改善，因此，选择Bcache作为缓存是不二之选。</p>
+<p>作者：永远的弈心<br>链接：<span class="exturl" data-url="aHR0cHM6Ly93d3cuamlhbnNodS5jb20vcC81NWVjNDNiNmU3NmU=" title="https://www.jianshu.com/p/55ec43b6e76e">https://www.jianshu.com/p/55ec43b6e76e<i class="fa fa-external-link"></i></span><br>来源：简书<br>著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。</p>
+
+    </div>
+
+    
+    
+    
+        
+      
+        <div id="reward-container">
+  <div>坚持原创技术分享，您的支持将鼓励我继续创作！</div>
+  <button id="reward-button" disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+        
+      
+      <div style="display: inline-block">
+        <img src="/images/wechat.png" alt="云天 微信支付">
+        <p>微信支付</p>
+      </div>
+        
+      
+      <div style="display: inline-block">
+        <img src="/images/alipay.jpg" alt="云天 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+      
+
+      <footer class="post-footer">
+          
+            
+          
+          <div class="post-tags">
+            
+              <a href="/tags/bcache/" rel="tag"># bcache</a>
+            
+          </div>
+        
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+              
+                <a href="/2019/09/03/bcache-yuan-ma-fen-xi/" rel="next" title="bcache源码分析">
+                  <i class="fa fa-chevron-left"></i> bcache源码分析
+                </a>
+              
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+              
+                <a href="/2019/09/05/md-yuan-ma-fen-xi/" rel="prev" title="MD源码分析">
+                  MD源码分析 <i class="fa fa-chevron-right"></i>
+                </a>
+              
+            </div>
+          </div>
+        
+      </footer>
+    
+  </div>
+  
+  
+  
+  </article>
+
+  </div>
+
+
+          </div>
+          
+
+        </div>
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+        
+        
+        
+        
+      
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Bcache简介"><span class="nav-number">1.</span> <span class="nav-text">Bcache简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Bcache缓存策略"><span class="nav-number">2.</span> <span class="nav-text">Bcache缓存策略</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#bcache-tools的安装与使用"><span class="nav-number">3.</span> <span class="nav-text">bcache-tools的安装与使用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#bcache-tools的安装"><span class="nav-number">3.1.</span> <span class="nav-text">bcache-tools的安装</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#bcache-tools的使用"><span class="nav-number">3.2.</span> <span class="nav-text">bcache-tools的使用</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Bcache磁盘配置"><span class="nav-number">4.</span> <span class="nav-text">Bcache磁盘配置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#格式化Bcache磁盘并挂载"><span class="nav-number">4.1.</span> <span class="nav-text">格式化Bcache磁盘并挂载</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#添加缓存盘"><span class="nav-number">4.2.</span> <span class="nav-text">添加缓存盘</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#删除缓存盘"><span class="nav-number">4.3.</span> <span class="nav-text">删除缓存盘</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#注销缓存盘"><span class="nav-number">4.4.</span> <span class="nav-text">注销缓存盘</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#停用bcache后端磁盘"><span class="nav-number">4.5.</span> <span class="nav-text">停用bcache后端磁盘</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Bcache使用之系统配置"><span class="nav-number">5.</span> <span class="nav-text">Bcache使用之系统配置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#配置-etc-fstab"><span class="nav-number">5.1.</span> <span class="nav-text">配置/etc/fstab</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#获取bcache设备的UUID"><span class="nav-number">5.1.1.</span> <span class="nav-text">获取bcache设备的UUID</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#将UUID配置写入-etc-fstab"><span class="nav-number">5.1.2.</span> <span class="nav-text">将UUID配置写入/etc/fstab</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#配置bcache内核模块开机自动加载"><span class="nav-number">5.2.</span> <span class="nav-text">配置bcache内核模块开机自动加载</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Bcache注意事项"><span class="nav-number">6.</span> <span class="nav-text">Bcache注意事项</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#writeback"><span class="nav-number">6.1.</span> <span class="nav-text">writeback</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#make-bcache"><span class="nav-number">6.2.</span> <span class="nav-text">make-bcache</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#经典的Device-busy"><span class="nav-number">6.3.</span> <span class="nav-text">经典的Device busy</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image"
+      src="/images/favicon.png"
+      alt="云天">
+  <p class="site-author-name" itemprop="name">云天</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+        
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+    
+      
+      
+      <div class="site-state-item site-state-categories">
+        
+          
+            <a href="/categories/">
+          
+        
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+    
+      
+      
+      <div class="site-state-item site-state-tags">
+        
+          
+            <a href="/tags/">
+          
+        
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+    
+  </nav>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+      
+      
+      
+        
+      
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3RpZ2VydGlwZXI=" title="GitHub &rarr; https://github.com/tigertiper"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+    
+      <span class="links-of-author-item">
+      
+      
+      
+        
+      
+        <span class="exturl" data-url="bWFpbHRvOmlhbXRpYW5wZW5nQGdtYWlsLmNvbQ==" title="E-Mail &rarr; mailto:iamtianpeng@gmail.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+    
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    
+  
+    <span class="exturl cc-opacity" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC8="><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; 2014 – <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">云天</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">79k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">1:12</span>
+</div><div class="footer-custom">
+
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+
+
+  <script src="/lib/anime.min.js?v=3.1.0"></script>
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+<script src="/js/utils.js?v=7.4.0"></script>
+<script src="/js/schemes/muse.js?v=7.4.0"></script>
+
+<script src="/js/next-boot.js?v=7.4.0"></script>
+
+
+
+  
+
+
+
+
+
+
+
+
+  <script src="/js/local-search.js?v=7.4.0"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+    
+      
+<script type="text/x-mathjax-config">
+
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$', '$'], ['\\(', '\\)'] ],
+      processEscapes: true,
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    },
+    TeX: {
+      equationNumbers: {
+        autoNumber: 'AMS'
+      }
+    }
+  });
+
+  MathJax.Hub.Register.StartupHook('TeX Jax Ready', function() {
+    MathJax.InputJax.TeX.prefilterHooks.Add(function(data) {
+      if (data.display) {
+        var next = data.script.nextSibling;
+        while (next && next.nodeName.toLowerCase() === '#text') {
+          next = next.nextSibling;
+        }
+        if (next && next.nodeName.toLowerCase() === 'br') {
+          next.parentNode.removeChild(next);
+        }
+      }
+    });
+  });
+
+  MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for (i = 0; i < all.length; i += 1) {
+      element = document.getElementById(all[i].inputID + '-Frame').parentNode;
+      if (element.nodeName.toLowerCase() == 'li') {
+        element = element.parentNode;
+      }
+      element.classList.add('has-jax');
+    }
+  });
+</script>
+<script>
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML', () => {
+    MathJax.Hub.Typeset();
+  }, window.MathJax);
+</script>
+
+    
+  
+
+  
+
+  
+
+</body>
+</html>

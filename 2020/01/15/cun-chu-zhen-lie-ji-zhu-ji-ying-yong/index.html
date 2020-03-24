@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+
+
+
+
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 3.9.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.4.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.4.0">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.4.0">
+  <link rel="mask-icon" href="/images/logo.svg?v=7.4.0" color="#222">
+  <meta name="yandex-verification" content="3ac9ae36ddebb425">
+
+<link rel="stylesheet" href="/css/main.css?v=7.4.0">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css?v=4.7.0">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '7.4.0',
+    exturl: true,
+    sidebar: {"onmobile":true,"display":"post"},
+    copycode: {"enable":true},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":true,"trigger":"auto","top_n_per_article":1,"preload":true},
+    path: 'search.xml',
+    motion: {"enable":false},
+    translation: {
+      copy_button: '复制',
+      copy_success: '复制成功',
+      copy_failure: '复制失败'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="存储阵列系统组成存储阵列系统：图：存储阵列系统架构">
+<meta name="keywords" content="存储阵列">
+<meta property="og:type" content="article">
+<meta property="og:title" content="存储阵列技术">
+<meta property="og:url" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/index.html">
+<meta property="og:site_name" content="云天">
+<meta property="og:description" content="存储阵列系统组成存储阵列系统：图：存储阵列系统架构">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image002.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image004.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image006.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image008.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image010.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image012.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image014.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image016.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image018.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image020.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image022.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image024.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image026.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image028.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image030.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image032.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image034.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image036.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image038.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image040.gif">
+<meta property="og:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image042.gif">
+<meta property="og:updated_time" content="2020-03-24T00:34:05.803Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="存储阵列技术">
+<meta name="twitter:description" content="存储阵列系统组成存储阵列系统：图：存储阵列系统架构">
+<meta name="twitter:image" content="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image002.gif">
+  <link rel="canonical" href="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>存储阵列技术 | 云天</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?fd574cb48e199b8e88b0f9f8a18322e2";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+  <div class="container">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">云天</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+      
+      
+      
+        
+        <li class="menu-item menu-item-home">
+      
+    
+      
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+      
+      
+      
+        
+        <li class="menu-item menu-item-about">
+      
+    
+      
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+      
+      
+      
+        
+        <li class="menu-item menu-item-archives">
+      
+    
+      
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档<span class="badge">5</span></a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a href="javascript:;" class="popup-trigger">
+        
+          <i class="menu-item-icon fa fa-search fa-fw"></i> <br>搜索</a>
+      </li>
+    
+  </ul>
+
+    
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="text" id="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result"></div>
+
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+      <article itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block post">
+    <link itemprop="mainEntityOfPage" href="https://tigertiper.github.io/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="云天">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/favicon.png">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="云天">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">存储阵列技术<span class="exturl post-edit-link" data-url="aHR0cHM6Ly9naXRodWIuY29tL3RpZ2VydGlwZXIvbXlibG9nL2VkaXQvbWFzdGVyL3NvdXJjZS9fcG9zdHMv5a2Y5YKo6Zi15YiX5oqA5pyv5Y+K5bqU55SoLm1k" title="编辑"><i class="fa fa-pencil"></i></span>
+
+          
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              
+                
+              
+
+              <time title="创建时间：2020-01-15 13:30:00" itemprop="dateCreated datePublished" datetime="2020-01-15T13:30:00+08:00">2020-01-15</time>
+            </span>
+          
+            
+
+            
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-03-24 08:34:05" itemprop="dateModified" datetime="2020-03-24T08:34:05+08:00">2020-03-24</time>
+              </span>
+            
+          
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/存储技术/" itemprop="url" rel="index"><span itemprop="name">存储技术</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">本文字数：</span>
+              
+              <span>2.8k</span>
+            </span>
+          
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              
+              <span>3 分钟</span>
+            </span>
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="存储阵列系统组成"><a href="#存储阵列系统组成" class="headerlink" title="存储阵列系统组成"></a>存储阵列系统组成</h1><h2 id="存储阵列系统："><a href="#存储阵列系统：" class="headerlink" title="存储阵列系统："></a>存储阵列系统：</h2><p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image002.gif" alt="系统"></p><p>图：存储阵列系统架构</p><a id="more"></a>
+
+<p>存储阵列由存储硬件、存储软件和解决方案三层组成。</p>
+<h2 id="存储阵列硬件组成："><a href="#存储阵列硬件组成：" class="headerlink" title="存储阵列硬件组成："></a>存储阵列硬件组成：</h2><p>存储阵列硬件系统又两部分组成：</p>
+<p>·    控制框</p>
+<p>控制框用于处理各种存储业务，并管理级联在控制框下面的硬盘框。</p>
+<p>·    硬盘框</p>
+<p>硬盘框主要用于容纳各种硬盘，为应用服务器提供充足的存储空间。</p>
+<p>硬盘框组成部件：系统插框、电源模块、风扇模块、级联模块、硬盘模块。</p>
+<h2 id="存储阵列软件组成："><a href="#存储阵列软件组成：" class="headerlink" title="存储阵列软件组成："></a>存储阵列软件组成：</h2><p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image004.gif" alt="软件"></p>
+<p>图：存储阵列软件组成</p>
+<h1 id="华为存储阵列技术"><a href="#华为存储阵列技术" class="headerlink" title="华为存储阵列技术"></a>华为存储阵列技术</h1><h2 id="华为存储阵列技术总览"><a href="#华为存储阵列技术总览" class="headerlink" title="华为存储阵列技术总览:"></a>华为存储阵列技术总览:</h2><p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image006.gif" alt="总览"></p>
+<p>图：华为存储技术总览</p>
+<p>·    高可靠性：器件冗余（对控）、硬盘坏道检测/修复、磁盘健康分析、多路径技术、BBU掉电保护、RAID重构、缓存镜像技术、磁盘保险箱技术、磁盘与拷贝技术、块照/克隆技术、LUN拷贝、远程复制等。</p>
+<p>·    可扩展性：Sacle-out、iSCSI、FC技术、SAS技术、PCI-e、FcOE.</p>
+<p>·    高性能：块虚拟化技术、cache回写、cache预取技术、12GbSAS、16Gb FC。</p>
+<p>·    高可用性：SmartTier技术、SmartQoS技术、Smart Thin技术。</p>
+<h2 id="高可靠性存储阵列技术："><a href="#高可靠性存储阵列技术：" class="headerlink" title="高可靠性存储阵列技术："></a>高可靠性存储阵列技术：</h2><h3 id="器件冗余："><a href="#器件冗余：" class="headerlink" title="器件冗余："></a>器件冗余：</h3><p>·    控制器模块冗余</p>
+<p>·    接口模块冗余</p>
+<p>·    管理模块冗余</p>
+<p>·    电源模块冗余</p>
+<p>·    风扇模块冗余</p>
+<p>·    BBU模块冗余</p>
+<h3 id="多控技术："><a href="#多控技术：" class="headerlink" title="多控技术："></a>多控技术：</h3><p>双控制器系统的工作模式:</p>
+<p>·    主备模式（AP）</p>
+<p>·    双活模式（AA）— 华为存储都采用AA模式</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image008.gif" alt="多控"></p>
+<p>图：多控技术</p>
+<h3 id="硬盘坏道检测技术："><a href="#硬盘坏道检测技术：" class="headerlink" title="硬盘坏道检测技术："></a>硬盘坏道检测技术：</h3><p>读写失败自动分析：</p>
+<ol>
+<li><p>根据失败有多重原因。</p>
+</li>
+<li><p>根据系统当前状态、硬盘状态、IO失败信息等进行综合分析。</p>
+</li>
+</ol>
+<p>硬盘截止自动扫描：</p>
+<ol>
+<li><p>直接使用硬盘的内建介质扫描功能</p>
+</li>
+<li><p>避免了硬盘扫描后多后端带宽的占用</p>
+</li>
+<li><p>将对系统性能的影响降到最低</p>
+</li>
+</ol>
+<h3 id="磁盘坏道修复技术："><a href="#磁盘坏道修复技术：" class="headerlink" title="磁盘坏道修复技术："></a>磁盘坏道修复技术：</h3><p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image010.gif" alt="修复"></p>
+<p>图：RAID 5 坏道修复示意图（红色色表示坏道）</p>
+<h3 id="磁盘健康分析DHA："><a href="#磁盘健康分析DHA：" class="headerlink" title="磁盘健康分析DHA："></a>磁盘健康分析DHA：</h3><p>DHA（Disk Health Analyzer）系统包括:</p>
+<p>·    硬盘信息采集模块</p>
+<p>·    分析模块</p>
+<p>·    Call Home模块</p>
+<p>·    数据预处理</p>
+<p>·    硬盘信息数据库</p>
+<p>·    数据分析</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image012.gif" alt="DHA"></p>
+<p>图：DHA系统原理图</p>
+<h3 id="多路径技术："><a href="#多路径技术：" class="headerlink" title="多路径技术："></a>多路径技术：</h3><p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image014.gif" alt="多路径"></p>
+<p>通过多跳路径，增加实现了线路冗余。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image016.gif" alt="多路径2"></p>
+<p>图：多路径技术</p>
+<h3 id="镜像技术"><a href="#镜像技术" class="headerlink" title="镜像技术:"></a>镜像技术:</h3><p>两个控制器的写Cache数据通过相互镜像实现备份，确保数据的安全和完整，提高了系统的可靠性。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image018.gif" alt="镜像技术"></p>
+<p>图：镜像技术</p>
+<p>镜像通道：SAS、PCI-e、FC.</p>
+<p>实现机制：读Cache、写Cache、镜像Cache。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image020.gif" alt="镜像"></p>
+<p>读策略：</p>
+<p>·    智能预取：对主机读请求进行连续性判断。如果是连续的请求，则将当前读请求后面的一段数据从硬盘预取到Cache中，提高读Cache命中率。如果是随机读，则不预取，只从硬盘读取需要的部分。</p>
+<p>·    固定预取：Cache读取硬盘数据时，每次从硬盘中读取固定的长度（用户配置）。</p>
+<p>·    可变预取：按照主机I/O请求中读取长度的倍数将数据预取到Cache中。</p>
+<p>写策略：</p>
+<p>·    透写：应用下发写数据请求时，既将数据写入Cache，同时也将数据写入硬盘。</p>
+<p>·    回写/镜像：应用下发写数据请求时，将数据写入本地Cache，同时也将数据写入对端Cache。</p>
+<p>·    强制回写/镜像：当存储系统发生故障（例如高温故障或BBU供电不足）时，强制将数据写入本地Cache，同时也将数据写到对端Cache。</p>
+<p>·    强制回写/不镜像：当存储系统发生故障（例如高温故障或BBU供电不足）时，强制将数据写入本地Cache。</p>
+<h3 id="数据保险箱技术："><a href="#数据保险箱技术：" class="headerlink" title="数据保险箱技术："></a>数据保险箱技术：</h3><p>数据保险箱技术：用于保存Cache数据，避免因系统意外断电时数据丢失。内置BBU电池可保证在系统意外断电时，对Cache和系统保险箱硬盘同时供电，让Cache中的数据写到数据保险箱中，实现Cache数据永久保存。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image022.gif" alt="保险"></p>
+<p>图：数据保险箱</p>
+<h3 id="磁盘预拷贝技术："><a href="#磁盘预拷贝技术：" class="headerlink" title="磁盘预拷贝技术："></a>磁盘预拷贝技术：</h3><ol>
+<li><p>正常状态时，实时监控硬盘状态。</p>
+</li>
+<li><p>当某个硬盘出现故障时：将该硬盘上的迁移数据到热备判。</p>
+</li>
+<li><p>迁移完成后，用新盘替换掉故障盘，数据会Copy back到新更换的硬盘上。</p>
+</li>
+</ol>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image024.gif" alt="拷贝"></p>
+<p>图：预拷贝技术原理</p>
+<h3 id="预拷贝与重构"><a href="#预拷贝与重构" class="headerlink" title="预拷贝与重构:"></a>预拷贝与重构:</h3><p>数据重构的影响</p>
+<p>·    系统性能的大幅降低</p>
+<p>·    大量数据读写易导致硬盘损坏</p>
+<p>·    会导致业务中断</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image026.gif" alt="重构"></p>
+<p>图：预拷贝与重构</p>
+<h3 id="快照技术："><a href="#快照技术：" class="headerlink" title="快照技术："></a>快照技术：</h3><p>快照为一个数据对象产生完全可用的副本，它包含该数据对象在某一时间点的映像。</p>
+<p>数据对象：对存储阵列来说就是可映射给主机的LUN。</p>
+<p>·    完全可用：可以正常读写。</p>
+<p>·    时间点：数据具有一致性。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image028.gif" alt="快照"></p>
+<p>图：快照技术</p>
+<h3 id="LUN拷贝技术："><a href="#LUN拷贝技术：" class="headerlink" title="LUN拷贝技术："></a>LUN拷贝技术：</h3><p>·    定义：一种基于块的将源LUN的数据复制到目标LUN的技术。</p>
+<p>·    应用：通过LUN拷贝，实现分级存储、系统升级、异地备份等应用需求。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image030.gif" alt="LUN拷贝"></p>
+<p>图：LUN拷贝技术</p>
+<h3 id="远程复制技术"><a href="#远程复制技术" class="headerlink" title="远程复制技术:"></a>远程复制技术:</h3><p>远程复制（HyperMirror）：提供不同区域间数据的同步/异步镜像。保护用户数据，避免灾难性事件带来的损失。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image032.gif" alt="复制"></p>
+<p>图：远端复制技术</p>
+<h3 id="远程复制技术与LUN拷贝技术对比："><a href="#远程复制技术与LUN拷贝技术对比：" class="headerlink" title="远程复制技术与LUN拷贝技术对比："></a>远程复制技术与LUN拷贝技术对比：</h3><p>对比项目 远程复制 LUN拷贝 </p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>兼容性</td>
+<td>只能在同类型存储系统之间运行</td>
+<td>不但支持同类型存储系统，而且支持经过认证的第三方的存储系统</td>
+</tr>
+<tr>
+<td>数据下发</td>
+<td>每个主LUN只能向1个（异步模式）或2个（同步模式，分别位于不同的存储系统上）从LUN复制数据。</td>
+<td>每个源LUN可以向数十个或者更多目标LUN复制数据。</td>
+</tr>
+<tr>
+<td>数据备份</td>
+<td>用于持续的数据保护。从LUN可读，但始终不可写。</td>
+<td>用于数据备份。数据拷贝完成后，主机即可访问目标LUN.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="可扩展性技术："><a href="#可扩展性技术：" class="headerlink" title="可扩展性技术："></a>可扩展性技术：</h2><p>扩展接口协议 优点 缺点 </p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SCSI</td>
+<td>成熟稳定</td>
+<td>只适用于直连，扩展能力差</td>
+</tr>
+<tr>
+<td>iSCSI</td>
+<td>组网方便，管理简单，不受距离限制。</td>
+<td>数据传输效率低，安全性差。</td>
+</tr>
+<tr>
+<td>FC</td>
+<td>吞吐量大，可靠性高，第时滞，安全性高，数据传输效率高。</td>
+<td>需存储专网，成本高</td>
+</tr>
+<tr>
+<td>SAS</td>
+<td>性价比高，发展空间大，技术新</td>
+<td>连接距离短，只适用于直连</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="高性能存储技术："><a href="#高性能存储技术：" class="headerlink" title="高性能存储技术："></a>高性能存储技术：</h2><h3 id="块虚拟化技术："><a href="#块虚拟化技术：" class="headerlink" title="块虚拟化技术："></a>块虚拟化技术：</h3><p>块级虚拟化技术：一种新型RAID技术，该技术将硬盘划分成若干固定大小的块（chunk），然后将其组合成若干个小RAID组。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image034.gif" alt="块"></p>
+<p>图：块级虚拟化技术</p>
+<h2 id="高可用性存储技术："><a href="#高可用性存储技术：" class="headerlink" title="高可用性存储技术："></a>高可用性存储技术：</h2><h3 id="SmartTier技术："><a href="#SmartTier技术：" class="headerlink" title="SmartTier技术："></a>SmartTier技术：</h3><p>动态分级存储技术（SmartTier）：自动将不同活跃度的数据和不同特点的存储介质动态匹配，提高存储系统性能并降低用户成本。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image036.gif" alt="ST"></p>
+<p>图：SmartTier技术</p>
+<h3 id="SmartQoS技术："><a href="#SmartQoS技术：" class="headerlink" title="SmartQoS技术："></a>SmartQoS技术：</h3><p>SmartQoS：是一种性能特性，通过动态地分配存储系统的资源来满足某些应用程序的特定性能目标。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image038.gif" alt="qos"></p>
+<p>图：SmartQoS技术</p>
+<h3 id="Smart-Thin技术："><a href="#Smart-Thin技术：" class="headerlink" title="Smart Thin技术："></a>Smart Thin技术：</h3><p>SmartThin：能够实现按需分配存储空间。在存储空间配额范围内，应用服务器用到多少空间，存储系统才给它分配多少空间，从而节省了宝贵的存储资源。</p>
+<p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image040.gif" alt="thin"></p>
+<p>图：Smart Thin技术</p>
+<h3 id="操作分级管理："><a href="#操作分级管理：" class="headerlink" title="操作分级管理："></a>操作分级管理：</h3><p><img src="/2020/01/15/cun-chu-zhen-lie-ji-zhu-ji-ying-yong/clip_image042.gif" alt="操作"></p>
+<p>图：操作分级管理</p>
+<p>·    Level 0：无影响，不进行处理</p>
+<p>·    Level 1：提示</p>
+<p>·    Level 2：警告</p>
+<p>·    Level 3：危险</p>
+
+    </div>
+
+    
+    
+    
+        
+      
+        <div id="reward-container">
+  <div>坚持原创技术分享，您的支持将鼓励我继续创作！</div>
+  <button id="reward-button" disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+        
+      
+      <div style="display: inline-block">
+        <img src="/images/wechat.png" alt="云天 微信支付">
+        <p>微信支付</p>
+      </div>
+        
+      
+      <div style="display: inline-block">
+        <img src="/images/alipay.jpg" alt="云天 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+      
+
+      <footer class="post-footer">
+          
+            
+          
+          <div class="post-tags">
+            
+              <a href="/tags/存储阵列/" rel="tag"># 存储阵列</a>
+            
+          </div>
+        
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+              
+                <a href="/2019/09/05/md-yuan-ma-fen-xi/" rel="next" title="MD源码分析">
+                  <i class="fa fa-chevron-left"></i> MD源码分析
+                </a>
+              
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+              
+                <a href="/2020/03/17/openstack-shi-yong-ceph-cun-chu-ceph-dao-di-zuo-liao-shi-me/" rel="prev" title="OpenStack使用Ceph">
+                  OpenStack使用Ceph <i class="fa fa-chevron-right"></i>
+                </a>
+              
+            </div>
+          </div>
+        
+      </footer>
+    
+  </div>
+  
+  
+  
+  </article>
+
+  </div>
+
+
+          </div>
+          
+
+        </div>
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+        
+        
+        
+        
+      
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#存储阵列系统组成"><span class="nav-number">1.</span> <span class="nav-text">存储阵列系统组成</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#存储阵列系统："><span class="nav-number">1.1.</span> <span class="nav-text">存储阵列系统：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#存储阵列硬件组成："><span class="nav-number">1.2.</span> <span class="nav-text">存储阵列硬件组成：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#存储阵列软件组成："><span class="nav-number">1.3.</span> <span class="nav-text">存储阵列软件组成：</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#华为存储阵列技术"><span class="nav-number">2.</span> <span class="nav-text">华为存储阵列技术</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#华为存储阵列技术总览"><span class="nav-number">2.1.</span> <span class="nav-text">华为存储阵列技术总览:</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#高可靠性存储阵列技术："><span class="nav-number">2.2.</span> <span class="nav-text">高可靠性存储阵列技术：</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#器件冗余："><span class="nav-number">2.2.1.</span> <span class="nav-text">器件冗余：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#多控技术："><span class="nav-number">2.2.2.</span> <span class="nav-text">多控技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#硬盘坏道检测技术："><span class="nav-number">2.2.3.</span> <span class="nav-text">硬盘坏道检测技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#磁盘坏道修复技术："><span class="nav-number">2.2.4.</span> <span class="nav-text">磁盘坏道修复技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#磁盘健康分析DHA："><span class="nav-number">2.2.5.</span> <span class="nav-text">磁盘健康分析DHA：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#多路径技术："><span class="nav-number">2.2.6.</span> <span class="nav-text">多路径技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#镜像技术"><span class="nav-number">2.2.7.</span> <span class="nav-text">镜像技术:</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据保险箱技术："><span class="nav-number">2.2.8.</span> <span class="nav-text">数据保险箱技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#磁盘预拷贝技术："><span class="nav-number">2.2.9.</span> <span class="nav-text">磁盘预拷贝技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#预拷贝与重构"><span class="nav-number">2.2.10.</span> <span class="nav-text">预拷贝与重构:</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#快照技术："><span class="nav-number">2.2.11.</span> <span class="nav-text">快照技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#LUN拷贝技术："><span class="nav-number">2.2.12.</span> <span class="nav-text">LUN拷贝技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#远程复制技术"><span class="nav-number">2.2.13.</span> <span class="nav-text">远程复制技术:</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#远程复制技术与LUN拷贝技术对比："><span class="nav-number">2.2.14.</span> <span class="nav-text">远程复制技术与LUN拷贝技术对比：</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#可扩展性技术："><span class="nav-number">2.3.</span> <span class="nav-text">可扩展性技术：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#高性能存储技术："><span class="nav-number">2.4.</span> <span class="nav-text">高性能存储技术：</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#块虚拟化技术："><span class="nav-number">2.4.1.</span> <span class="nav-text">块虚拟化技术：</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#高可用性存储技术："><span class="nav-number">2.5.</span> <span class="nav-text">高可用性存储技术：</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#SmartTier技术："><span class="nav-number">2.5.1.</span> <span class="nav-text">SmartTier技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SmartQoS技术："><span class="nav-number">2.5.2.</span> <span class="nav-text">SmartQoS技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Smart-Thin技术："><span class="nav-number">2.5.3.</span> <span class="nav-text">Smart Thin技术：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#操作分级管理："><span class="nav-number">2.5.4.</span> <span class="nav-text">操作分级管理：</span></a></li></ol></li></ol></li></ol></div>
+        
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image"
+      src="/images/favicon.png"
+      alt="云天">
+  <p class="site-author-name" itemprop="name">云天</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+  <nav class="site-state motion-element">
+      <div class="site-state-item site-state-posts">
+        
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+    
+      
+      
+      <div class="site-state-item site-state-categories">
+        
+          
+            <a href="/categories/">
+          
+        
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+        </a>
+      </div>
+    
+      
+      
+      <div class="site-state-item site-state-tags">
+        
+          
+            <a href="/tags/">
+          
+        
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span>
+        </a>
+      </div>
+    
+  </nav>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+      
+      
+      
+        
+      
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3RpZ2VydGlwZXI=" title="GitHub &rarr; https://github.com/tigertiper"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+    
+      <span class="links-of-author-item">
+      
+      
+      
+        
+      
+        <span class="exturl" data-url="bWFpbHRvOmlhbXRpYW5wZW5nQGdtYWlsLmNvbQ==" title="E-Mail &rarr; mailto:iamtianpeng@gmail.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+    
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    
+  
+    <span class="exturl cc-opacity" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC8="><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; 2014 – <span itemprop="copyrightYear">2020</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">云天</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    
+    <span title="站点总字数">79k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    
+    <span title="站点阅读时长">1:12</span>
+</div><div class="footer-custom">
+
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+
+
+  <script src="/lib/anime.min.js?v=3.1.0"></script>
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+<script src="/js/utils.js?v=7.4.0"></script>
+<script src="/js/schemes/muse.js?v=7.4.0"></script>
+
+<script src="/js/next-boot.js?v=7.4.0"></script>
+
+
+
+  
+
+
+
+
+
+
+
+
+  <script src="/js/local-search.js?v=7.4.0"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+    
+      
+<script type="text/x-mathjax-config">
+
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$', '$'], ['\\(', '\\)'] ],
+      processEscapes: true,
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    },
+    TeX: {
+      equationNumbers: {
+        autoNumber: 'AMS'
+      }
+    }
+  });
+
+  MathJax.Hub.Register.StartupHook('TeX Jax Ready', function() {
+    MathJax.InputJax.TeX.prefilterHooks.Add(function(data) {
+      if (data.display) {
+        var next = data.script.nextSibling;
+        while (next && next.nodeName.toLowerCase() === '#text') {
+          next = next.nextSibling;
+        }
+        if (next && next.nodeName.toLowerCase() === 'br') {
+          next.parentNode.removeChild(next);
+        }
+      }
+    });
+  });
+
+  MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for (i = 0; i < all.length; i += 1) {
+      element = document.getElementById(all[i].inputID + '-Frame').parentNode;
+      if (element.nodeName.toLowerCase() == 'li') {
+        element = element.parentNode;
+      }
+      element.classList.add('has-jax');
+    }
+  });
+</script>
+<script>
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML', () => {
+    MathJax.Hub.Typeset();
+  }, window.MathJax);
+</script>
+
+    
+  
+
+  
+
+  
+
+</body>
+</html>
